@@ -12,4 +12,10 @@ export const fmtHM = (ms: number) => {
   return `${Math.floor(m / 60)}h ${pad(m % 60)}m`;
 };
 
-export const fmtDate = (d: Date, opts: Intl.DateTimeFormatOptions) => d.toLocaleDateString(undefined, opts);
+/** Clock time of a timestamp, 24h: 09:30 */
+export const fmtTime = (ms: number) => {
+  const d = new Date(ms);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+export const fmtDate =(d: Date, opts: Intl.DateTimeFormatOptions) => d.toLocaleDateString(undefined, opts);

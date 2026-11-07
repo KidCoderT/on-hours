@@ -28,8 +28,8 @@
       {
         "label": "settings",
         "title": "Settings",
-        "width": 380,
-        "height": 700,
+        "width": 460,
+        "height": 780,
         "resizable": false,
         "maximizable": false,
         "center": true,

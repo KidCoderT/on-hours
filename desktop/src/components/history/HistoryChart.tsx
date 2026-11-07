@@ -1,22 +1,26 @@
 import { useRef, useState } from "react";
 import { fmtDate, fmtHM } from "../../lib/format";
-import { addDays, HOUR } from "../../lib/time";
+import { addDays } from "../../lib/time";
 import { ChevronLeftIcon, ChevronRightIcon } from "../icons";
 import { useWeekHistory } from "./useWeekHistory";
+import WeekBars from "./WeekBars";
+import WeekTimeline from "./WeekTimeline";
 import "./history.css";
 
 type Props = { goalMs: number; dayStart: string };
+type View = "totals" | "timeline";
+const VIEWS: View[] = ["totals", "timeline"];
 
 function HistoryChart({ goalMs, dayStart }: Props) {
   const [offset, setOffset] = useState(0); // weeks back from this week
   const [picked, setPicked] = useState<number | null>(null);
   const wheelLock = useRef(0);
+  const [view, setView] = useState<View>(() => (localStorage.getItem("history-view") as View) ?? "totals");
+  const pickView = (v: View) => {
+    localStorage.setItem("history-view", v);
+    setView(v);
+  };
   const { monday, days, elapsed, total, weekPct, maxOffset, worked } = useWeekHistory(offset, dayStart);
-
-  // Y scale in whole hours, ticks every 2h, always tall enough to show the goal.
-  const maxH = Math.max(6, Math.ceil(Math.max(goalMs, ...days.map((d) => d.ms)) / HOUR / 2) * 2);
-  const ticks = Array.from({ length: maxH / 2 + 1 }, (_, i) => i * 2).filter((t) => t * HOUR !== goalMs);
-  const pct = (ms: number) => `${(ms / (maxH * HOUR)) * 100}%`;
 
   const active = picked ?? elapsed - 1;
   const day = days[Math.max(0, active)];
@@ -28,9 +32,10 @@ function HistoryChart({ goalMs, dayStart }: Props) {
     setPicked(null);
   };
 
-  // Scroll / trackpad swipe pages weeks; locked briefly so one flick = one week.
+  // Horizontal swipes page weeks; vertical scrolling belongs to the settings page.
   const onWheel = (e: React.WheelEvent) => {
-    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    const delta = e.deltaX;
     if (Math.abs(delta) < 4 || Date.now() - wheelLock.current < 450) return;
     wheelLock.current = Date.now();
     page(delta > 0 ? -1 : 1); // down/right = newer
@@ -54,50 +59,32 @@ function HistoryChart({ goalMs, dayStart }: Props) {
       </div>
 
       <div className="week-stat">
-        <span className="week-total">{fmtHM(total)}</span>
-        {weekPct !== null && (
-          <span className={`delta ${weekPct >= 0 ? "up" : "down"}`}>
-            {weekPct >= 0 ? "▲" : "▼"} {Math.abs(weekPct)}%
-            <span className="vs"> vs last week</span>
-          </span>
-        )}
+        <div className="week-summary">
+          <span className="stat-label">Total focused time</span>
+          <span className="week-total">{fmtHM(total)}</span>
+          {weekPct !== null && (
+            <span className={`delta ${weekPct >= 0 ? "up" : "down"}`}>
+              {weekPct >= 0 ? "▲" : "▼"} {Math.abs(weekPct)}%
+              <span className="vs"> vs last week</span>
+            </span>
+          )}
+        </div>
+        <div className="segmented view-switch" role="radiogroup" aria-label="Chart view">
+          {VIEWS.map((v) => (
+            <label key={v}>
+              <input type="radio" name="history-view" className="sr-only" checked={view === v} onChange={() => pickView(v)} />
+              <span>{v === "totals" ? "Totals" : "Timeline"}</span>
+            </label>
+          ))}
+        </div>
       </div>
 
-      <div className="chart" onWheel={onWheel} onMouseLeave={() => setPicked(null)}>
-        <div className="plot">
-          {ticks.map((t) => (
-            <div key={t} className="grid" style={{ bottom: pct(t * HOUR) }}>
-              <span>{t}h</span>
-            </div>
-          ))}
-          <div className="grid goal" style={{ bottom: pct(goalMs) }}>
-            <span>Goal</span>
-          </div>
-          <div className="cols">
-            {days.map((d, i) => (
-              <button
-                type="button"
-                key={i}
-                className="col"
-                data-active={i === active}
-                data-met={d.ms >= goalMs}
-                disabled={d.future}
-                onMouseEnter={() => setPicked(i)}
-                onFocus={() => setPicked(i)}
-                aria-label={`${fmtDate(d.date, { weekday: "long", month: "short", day: "numeric" })}: ${fmtHM(d.ms)}, ${d.ms >= goalMs ? "goal met" : "under goal"}`}
-              >
-                {!d.future && <span className="bar" style={{ height: `max(2px, ${pct(d.ms)})` }} />}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="xlabels" aria-hidden="true">
-          {days.map((d, i) => (
-            <span key={i} data-today={d.today} data-future={d.future}>
-              {fmtDate(d.date, { weekday: "narrow" })}
-            </span>
-          ))}
-        </div>
+      <div className="chart" data-view={view} onWheel={onWheel} onMouseLeave={() => setPicked(null)}>
+        {view === "timeline" ? (
+          <WeekTimeline days={days} goalMs={goalMs} active={active} onPick={setPicked} />
+        ) : (
+          <WeekBars days={days} goalMs={goalMs} active={active} onPick={setPicked} />
+        )}
       </div>
 
       <div className="day-detail" aria-live="polite">

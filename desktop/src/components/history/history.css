@@ -1,40 +1,88 @@
 /* History chart (lives in the settings window). */
+.history { border-top: 1px solid var(--edge); padding-top: 22px; }
 .day { display: flex; align-items: center; gap: 10px; }
 .num { font-variant-numeric: tabular-nums; }
 
 .week-nav { display: flex; align-items: center; gap: 2px; font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .week-nav > span { min-width: 92px; text-align: center; }
-.week-nav button { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--icon); cursor: pointer; }
+.week-nav button { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--icon); cursor: pointer; }
 .week-nav button:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
 .week-nav button:disabled { opacity: 0.35; cursor: default; }
 .week-nav svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
-.week-stat { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 12px; }
-.week-total { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.week-stat { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 22px 0 28px; }
+.week-summary { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+.stat-label { font-size: 12px; line-height: 18px; color: var(--muted); }
+.week-total { font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; }
 .delta { font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .delta.up { color: var(--green); }
 .delta.down { color: var(--red); }
 .delta .vs { color: var(--muted); }
 
 /* Bars: neutral under goal, green when met; the goal gridline is the reference. */
-.chart { --gutter: 34px; --bar: color-mix(in srgb, var(--ink) 20%, var(--surface)); }
-.plot { position: relative; height: 120px; margin-left: var(--gutter); }
+.chart { --gutter: 40px; --bar: color-mix(in srgb, var(--ink) 20%, var(--surface)); }
+.plot { position: relative; height: 260px; margin-left: var(--gutter); }
 .grid { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--edge); }
-.grid span { position: absolute; right: calc(100% + 8px); top: -7px; font-size: 10px; line-height: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.grid.goal { border-top-color: var(--icon); }
+.grid span { position: absolute; right: calc(100% + 8px); top: -7px; font-size: 11px; line-height: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.grid.goal { border-top-color: var(--icon); border-top-style: dashed; }
 .grid.goal span { color: var(--ink); font-weight: 500; }
 .cols { position: absolute; inset: 0; display: flex; }
 .col { flex: 1; display: flex; align-items: flex-end; justify-content: center; padding: 0; border: 0; border-radius: 6px 6px 0 0; background: transparent; cursor: default; }
 .col[data-active="true"] { background: color-mix(in srgb, var(--hover) 70%, transparent); }
 .col:focus-visible { outline-offset: -2px; }
-.bar { width: 20px; border-radius: 4px 4px 0 0; background: var(--bar); transition: height 280ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms; }
+.bar { width: 24px; border-radius: 4px 4px 0 0; background: var(--bar); transition: height 280ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms; }
 .col[data-met="true"] .bar { background: var(--green); }
 .col[data-active="true"]:not([data-met="true"]) .bar { background: color-mix(in srgb, var(--ink) 38%, var(--surface)); }
-.xlabels { display: flex; margin: 6px 0 0 var(--gutter); }
+.xlabels { display: flex; margin: 12px 0 0 var(--gutter); line-height: 18px; }
 .xlabels span { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
 .xlabels [data-today="true"] { color: var(--ink); font-weight: 600; }
 .xlabels [data-future="true"] { opacity: 0.45; }
 
-.day-detail { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--edge); font-size: 13px; }
+.day-detail { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; margin-top: 20px; padding: 14px 0; border-top: 1px solid var(--edge); font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+
+/* ---- View switch + timeline ---- */
+.view-switch { margin-left: auto; align-self: center; }
+.view-switch span { padding: 0 10px; }
+
+/* Calendar-style: time runs downward, each session is a block at the hours it happened. */
+/* Reserve the totals row in both views so changing views keeps the detail row steady. */
+.chart[data-view="totals"] { padding-bottom: 22px; }
+.timeline .col { position: relative; border-radius: 4px; border-right: 1px solid color-mix(in srgb, var(--edge) 55%, transparent); }
+.timeline .col:last-child { border-right: 0; }
+.block {
+  position: absolute; left: 5px; right: 5px;
+  border-radius: 3px;
+  background: var(--bar);
+  transition: background-color 160ms;
+}
+.col[data-met="true"] .block { background: var(--green); }
+.col[data-active="true"]:not([data-met="true"]) .block { background: color-mix(in srgb, var(--ink) 38%, var(--surface)); }
+.xlabels.totals { margin-top: 4px; height: 18px; line-height: 18px; }
+.xlabels.totals span { font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Timeline hover: red line at the mouse with its time; a hovered session shows its length. */
+.cursor { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--red); pointer-events: none; z-index: 1; }
+.cursor-time {
+  position: absolute; right: calc(100% + 4px); top: -8px;
+  padding: 0 3px; border-radius: 3px;
+  background: var(--red); color: var(--surface);
+  font-size: 10px; line-height: 16px; font-variant-numeric: tabular-nums;
+}
+.cursor-tip {
+  position: absolute; bottom: 5px; transform: translateX(-50%);
+  padding: 2px 6px; border-radius: 4px;
+  background: var(--ink); color: var(--surface);
+  font-size: 11px; line-height: 16px; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.cursor-tip[data-edge="left"] { left: 0 !important; transform: none; }
+.cursor-tip[data-edge="right"] { left: auto !important; right: 0; transform: none; }
+.block[data-hit="true"] { box-shadow: 0 0 0 1.5px var(--ink); }
+
+@media (max-width: 400px) {
+  .week-stat { gap: 10px; }
+  .week-total { font-size: 25px; }
+  .day-detail { grid-template-columns: 1fr auto; gap: 6px 10px; }
+  .day-detail > .delta { grid-column: 1 / -1; }
+}

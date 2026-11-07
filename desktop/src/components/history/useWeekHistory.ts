@@ -28,15 +28,21 @@ export function useWeekHistory(offset: number, dayStart: string) {
   }, [from, to, +thisMonday]);
 
   // ponytail: a running session counts up to "now" but only refreshes on focus / paging; add a timer if a live chart matters.
+  const now = Date.now();
+  const live = sessions.map((s) => (s.open ? { ...s, end_ms: now } : s));
   const worked = (date: Date) => {
     const r = dayRange(date, dayStart);
-    const now = Date.now();
-    return trimmedTotal(sessions.map((s) => (s.open ? { ...s, end_ms: now } : s)), r.from, r.to);
+    return trimmedTotal(live, r.from, r.to);
   };
 
   const days = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(monday, i);
-    return { date, ms: worked(date), future: date > today, today: +date === +today };
+    const { from, to } = dayRange(date, dayStart);
+    // Each session's slice of this day, for the timeline view.
+    const spans = live
+      .filter((s) => s.end_ms > from && s.start_ms < to)
+      .map((s) => ({ start: Math.max(s.start_ms, from), end: Math.min(s.end_ms, to) }));
+    return { date, from, spans, ms: worked(date), future: date > today, today: +date === +today };
   });
 
   // Week total vs the same number of days last week (fair for a week in progress).

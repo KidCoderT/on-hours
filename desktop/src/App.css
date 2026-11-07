@@ -76,3 +76,4 @@
   .pill .dot::after { animation: none !important; }
   .pill button { transition: none; }
 }
+.pill button:disabled { opacity: 0.4; cursor: default; }

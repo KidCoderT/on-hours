@@ -37,7 +37,11 @@ export const sessionsBetween = (from: number, to: number) =>
     [from, to],
   );
 
-export const startSession = (now = Date.now()) =>
+/** Start of the very first session, or null if nothing is logged yet. */
+export const firstSessionStart = async () =>
+  (await db.select<{ t: number | null }[]>("SELECT MIN(start_ms) AS t FROM sessions"))[0]?.t ?? null;
+
+export const startSession =(now = Date.now()) =>
   db.execute("INSERT INTO sessions (start_ms, end_ms, open) VALUES ($1, $2, 1)", [now, now]);
 
 /** Called every ~30s while running, so a crash loses at most that much. */

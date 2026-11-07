@@ -1,49 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [start, setStart] = useState(Date.now());
+  const [clock, setClock] = useState(0)
+  const [running, setRunning] = useState(false)
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  useEffect(() => {
+    if (!running) return
+
+    const id = setInterval(() => { setClock(Date.now() - start) }, 1000);
+    return () => clearInterval(id)
+  }, [start, running])
+
+  const resetTimer = () => {
+    setClock(0);
+    setStart(Date.now())
+  }
+
+  const pauseOrPlay = (val: boolean) => {
+    if (val) {
+      setStart(Date.now() - clock)
+    }
+    setRunning(val)
   }
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+      <h1>Simple Timer</h1>
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+      {Math.floor((clock / 1000) / (60 * 60))}:
+      {Math.floor((clock / 1000) / (60)) % 60}:
+      {Math.floor(clock / 1000) % (60)}
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+      <button onClick={() => resetTimer()}>Reset</button>
+      <button onClick={() => pauseOrPlay(!running)}>{!running ? "Start" : "Stop"}</button>
     </main>
   );
 }

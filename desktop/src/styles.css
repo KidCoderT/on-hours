@@ -1,0 +1,52 @@
+/* Registered colors interpolate at the root and inherit into both views. */
+@property --surface { syntax: '<color>'; inherits: true; initial-value: #fcfcfc; }
+@property --ink { syntax: '<color>'; inherits: true; initial-value: #202020; }
+@property --muted { syntax: '<color>'; inherits: true; initial-value: #696969; }
+@property --edge { syntax: '<color>'; inherits: true; initial-value: #e3e3e3; }
+@property --icon { syntax: '<color>'; inherits: true; initial-value: #707070; }
+@property --hover { syntax: '<color>'; inherits: true; initial-value: #efefef; }
+@property --pressed { syntax: '<color>'; inherits: true; initial-value: #e5e5e5; }
+@property --red { syntax: '<color>'; inherits: true; initial-value: #b83f3a; }
+@property --yellow { syntax: '<color>'; inherits: true; initial-value: #b68719; }
+@property --green { syntax: '<color>'; inherits: true; initial-value: #31825b; }
+:root {
+  --surface: #fcfcfc;
+  --ink: #202020;
+  --muted: #696969;
+  --edge: #e3e3e3;
+  --icon: #707070;
+  --hover: #efefef;
+  --pressed: #e5e5e5;
+  --red: #b83f3a;
+  --yellow: #b68719;
+  --green: #31825b;
+  color-scheme: light;
+  font-family: Inter, "SF Pro Display", "Segoe UI Variable", system-ui, sans-serif;
+  color: var(--ink);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+/* Enabled after restoring the saved theme to avoid a launch fade. */
+:root.theme-ready { transition: --surface 320ms ease, --ink 320ms ease, --muted 320ms ease, --edge 320ms ease, --icon 320ms ease, --hover 320ms ease, --pressed 320ms ease, --red 320ms ease, --yellow 320ms ease, --green 320ms ease; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #202020;
+    --ink: #f5f5f5;
+    --muted: #9c9c9c;
+    --edge: #383838;
+    --icon: #b0b0b0;
+    --hover: #303030;
+    --pressed: #3a3a3a;
+    --red: #ef7973;
+    --yellow: #d6b34e;
+    --green: #73b68f;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; overflow: hidden; }
+button, input, select { font: inherit; }
+:focus-visible { outline: 2px solid var(--icon); outline-offset: 3px; }
+.dot { position: relative; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--dot, var(--red)); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { :root.theme-ready { transition: none; } }

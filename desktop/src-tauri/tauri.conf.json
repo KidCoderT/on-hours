@@ -12,9 +12,28 @@
   "app": {
     "windows": [
       {
-        "title": "desktop",
-        "width": 800,
-        "height": 600
+        "label": "main",
+        "title": "Hormozi Timer",
+        "width": 248,
+        "height": 48,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true
+      },
+      {
+        "label": "settings",
+        "title": "Settings",
+        "width": 380,
+        "height": 700,
+        "resizable": false,
+        "maximizable": false,
+        "center": true,
+        "visible": false
       }
     ],
     "security": {

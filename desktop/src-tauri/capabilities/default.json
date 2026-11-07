@@ -2,7 +2,10 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the pill and settings windows",
-  "windows": ["main", "settings"],
+  "windows": [
+    "main",
+    "settings"
+  ],
   "permissions": [
     "core:default",
     "opener:default",
@@ -12,6 +15,8 @@
     "core:window:allow-unminimize",
     "core:window:allow-set-focus",
     "core:app:allow-set-app-theme",
-    "window-state:allow-save-window-state"
+    "window-state:allow-save-window-state",
+    "sql:default",
+    "sql:allow-execute"
   ]
 }

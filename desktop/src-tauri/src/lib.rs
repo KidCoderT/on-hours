@@ -16,7 +16,20 @@ fn migrations() -> Vec<tauri_plugin_sql::Migration> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // Remember where windows were. Position only: sizes come from tauri.conf.json,
+    // and the hidden settings window must not reopen visible.
+    // Must be registered on the builder (not in .setup()): it hooks window creation,
+    // and the config windows already exist by the time .setup() runs.
+    #[cfg(desktop)]
+    let builder = builder.plugin(
+        tauri_plugin_window_state::Builder::new()
+            .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION)
+            .build(),
+    );
+
+    builder
         // The DB is opened and migrated at startup (see `plugins.sql.preload` in tauri.conf.json).
         .plugin(
             tauri_plugin_sql::Builder::new()
@@ -24,17 +37,6 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .setup(|app| {
-            // Remember where windows were. Position only: sizes come from tauri.conf.json,
-            // and the hidden settings window must not reopen visible.
-            #[cfg(desktop)]
-            app.handle().plugin(
-                tauri_plugin_window_state::Builder::new()
-                    .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION)
-                    .build(),
-            )?;
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![quit])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

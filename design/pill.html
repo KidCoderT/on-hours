@@ -1,0 +1,83 @@
+<!doctype html>
+<!-- Final pill design: Astra's layout + type, DeepSeek's pulse, divider and slider icon. No shadow. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hormozi Timer — final pill</title>
+<style>
+body { margin: 0; padding: 48px; display: flex; gap: 24px; font-family: Inter, "SF Pro Display", "Segoe UI Variable", system-ui, sans-serif; background: #F5F4F1; }
+.panel { padding: 24px; border-radius: 16px; display: flex; flex-direction: column; gap: 14px; }
+.panel.dark { background: #0E0E0F; }
+.cap { font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #8D8A82; margin: 6px 0 -6px 18px; }
+
+.pill {
+  --surface: #FCFCFC; --ink: #202020; --edge: #E3E3E3; --icon: #707070; --hover: #EFEFEF; --pressed: #E5E5E5; --hair: #E7E5DF;
+  --red: #C84B46; --yellow: #B68719; --green: #31825B;
+  --dot: var(--red);
+  display: flex; align-items: center; width: 248px; height: 48px; box-sizing: border-box;
+  padding: 0 7px 0 18px; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--edge); border-radius: 999px; user-select: none;
+}
+.dark .pill {
+  --surface: #202020; --ink: #F5F5F5; --edge: #363636; --icon: #A3A3A3; --hover: #303030; --pressed: #3A3A3A; --hair: #363636;
+  --red: #EF7973; --yellow: #D6B34E; --green: #73B68F;
+}
+.pill[data-running="true"] { --dot: var(--yellow); }
+.pill[data-done="true"] { --dot: var(--green); }
+
+.dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: var(--dot); margin-right: 12px; flex: none; transition: background-color .2s; }
+.dot::after { content: ""; position: absolute; inset: -1px; border-radius: 50%; border: 1px solid var(--dot); opacity: 0; }
+.pill[data-running="true"] .dot::after { animation: pulse 3s cubic-bezier(.22,.61,.28,1) infinite; }
+@keyframes pulse { 0% { opacity: .45; transform: scale(1); } 55%, 100% { opacity: 0; transform: scale(3.1); } }
+
+.time { flex: 1; font-size: 21px; font-weight: 500; line-height: 1; letter-spacing: -.035em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rule { width: 1px; height: 14px; background: var(--hair); margin-right: 5px; }
+
+button { appearance: none; border: 0; padding: 0; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: transparent; color: var(--ink); cursor: pointer; transition: background-color .12s, transform .12s; }
+button:hover { background: var(--hover); }
+button:active { background: var(--pressed); transform: scale(.92); }
+button:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 1px; }
+button.settings { color: var(--icon); }
+button svg { width: 16px; height: 16px; display: block; }
+.pause { display: none; }
+.pill[data-running="true"] .play { display: none; }
+.pill[data-running="true"] .pause { display: block; }
+@media (prefers-reduced-motion: reduce) { .dot::after { animation: none !important; } button { transition: none; } }
+</style>
+</head>
+<body>
+<template id="pill">
+  <div class="pill" data-running="false" data-done="false">
+    <span class="dot"></span>
+    <span class="time">2:14:07</span>
+    <span class="rule"></span>
+    <button class="toggle" type="button" aria-label="Start">
+      <svg class="play" viewBox="0 0 16 16"><path d="M5.2 3.55c0-.5.54-.81.97-.55l6.05 4.43a.65.65 0 0 1 0 1.14L6.17 13c-.43.26-.97-.05-.97-.55V3.55Z" fill="currentColor"/></svg>
+      <svg class="pause" viewBox="0 0 16 16"><rect x="4.6" y="3.5" width="2" height="9" rx="1" fill="currentColor"/><rect x="9.4" y="3.5" width="2" height="9" rx="1" fill="currentColor"/></svg>
+    </button>
+    <button class="settings" type="button" aria-label="Settings">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M2.8 5.4h10.4M2.8 10.6h10.4" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/><path d="M6.6 3.9v3M10.2 9.1v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</template>
+
+<div class="panel" id="light"></div>
+<div class="panel dark" id="dark"></div>
+
+<script>
+const states = [["Paused · goal not met", false, false, "2:14:07"], ["Running · goal not met", true, false, "2:14:07"], ["Goal met", false, true, "4:02:31"]];
+for (const id of ["light", "dark"]) {
+  const panel = document.getElementById(id);
+  for (const [label, running, done, time] of states) {
+    panel.insertAdjacentHTML("beforeend", `<div class="cap">${label}</div>`);
+    const pill = document.getElementById("pill").content.firstElementChild.cloneNode(true);
+    pill.dataset.running = running; pill.dataset.done = done;
+    pill.querySelector(".time").textContent = time;
+    pill.querySelector(".toggle").onclick = () => { pill.dataset.running = pill.dataset.running !== "true"; };
+    panel.append(pill);
+  }
+}
+</script>
+</body>
+</html>

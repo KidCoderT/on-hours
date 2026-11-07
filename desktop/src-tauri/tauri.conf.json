@@ -40,6 +40,11 @@
       "csp": null
     }
   },
+  "plugins": {
+    "sql": {
+      "preload": ["sqlite:hormozi.db"]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

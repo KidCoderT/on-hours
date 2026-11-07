@@ -1,65 +1,17 @@
-import { useEffect, useRef, useState } from "react";
-import { isTauri } from "@tauri-apps/api/core";
-import { dayRange, firstSessionStart, sessionsBetween, trimmedTotal, workDayOf, type Session } from "./db";
-
-const HOUR = 3_600_000;
-const WEEK = 7 * 24 * HOUR;
-
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-const mondayOf = (d: Date) => addDays(startOfDay(d), -((d.getDay() + 6) % 7));
-
-const fmtHM = (ms: number) => {
-  const m = Math.round(ms / 60_000);
-  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`;
-};
-const fmtDate = (d: Date, opts: Intl.DateTimeFormatOptions) => d.toLocaleDateString(undefined, opts);
+import { useRef, useState } from "react";
+import { fmtDate, fmtHM } from "../../lib/format";
+import { addDays, HOUR } from "../../lib/time";
+import { ChevronLeftIcon, ChevronRightIcon } from "../icons";
+import { useWeekHistory } from "./useWeekHistory";
+import "./history.css";
 
 type Props = { goalMs: number; dayStart: string };
 
 function HistoryChart({ goalMs, dayStart }: Props) {
-  const today = startOfDay(workDayOf(new Date(), dayStart));
-  const thisMonday = mondayOf(today);
   const [offset, setOffset] = useState(0); // weeks back from this week
   const [picked, setPicked] = useState<number | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [maxOffset, setMaxOffset] = useState(0); // can't page back past the first session
   const wheelLock = useRef(0);
-
-  const monday = addDays(thisMonday, -7 * offset);
-  // Load this week plus the week before it (for the "vs last week / vs yesterday" deltas).
-  const from = dayRange(addDays(monday, -7), dayStart).from;
-  const to = dayRange(addDays(monday, 6), dayStart).to;
-
-  useEffect(() => {
-    if (!isTauri()) return; // design preview: empty chart
-    const load = () => {
-      sessionsBetween(from, to).then(setSessions);
-      firstSessionStart().then((t) => setMaxOffset(t ? Math.round((+thisMonday - +mondayOf(new Date(t))) / WEEK) : 0));
-    };
-    load();
-    // The window is hidden, not closed, so refresh each time it's brought back.
-    window.addEventListener("focus", load);
-    return () => window.removeEventListener("focus", load);
-  }, [from, to, +thisMonday]);
-
-  // ponytail: a running session counts up to "now" but only refreshes on focus / paging; add a timer if a live chart matters.
-  const worked = (date: Date) => {
-    const r = dayRange(date, dayStart);
-    const now = Date.now();
-    return trimmedTotal(sessions.map((s) => (s.open ? { ...s, end_ms: now } : s)), r.from, r.to);
-  };
-
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(monday, i);
-    return { date, ms: worked(date), future: date > today, today: +date === +today };
-  });
-
-  // Week total vs the same number of days last week (fair for a week in progress).
-  const elapsed = days.filter((d) => !d.future).length;
-  const total = days.reduce((s, d) => s + d.ms, 0);
-  const prevTotal = days.slice(0, elapsed).reduce((s, d) => s + worked(addDays(d.date, -7)), 0);
-  const weekPct = prevTotal ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
+  const { monday, days, elapsed, total, weekPct, maxOffset, worked } = useWeekHistory(offset, dayStart);
 
   // Y scale in whole hours, ticks every 2h, always tall enough to show the goal.
   const maxH = Math.max(6, Math.ceil(Math.max(goalMs, ...days.map((d) => d.ms)) / HOUR / 2) * 2);
@@ -92,11 +44,11 @@ function HistoryChart({ goalMs, dayStart }: Props) {
         <h2 id="history-heading">History</h2>
         <div className="week-nav">
           <button type="button" onClick={() => page(1)} disabled={offset >= maxOffset} aria-label="Previous week">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" /></svg>
+            <ChevronLeftIcon />
           </button>
           <span>{offset === 0 ? "This week" : range}</span>
           <button type="button" onClick={() => page(-1)} disabled={offset === 0} aria-label="Next week">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg>
+            <ChevronRightIcon />
           </button>
         </div>
       </div>

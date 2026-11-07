@@ -1,7 +1,8 @@
 // Run: bun test   (checks the migration SQL and the day/trim math without Tauri)
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
-import { dayRange, trimmedTotal, workDayOf, type Session } from "../src/db";
+import type { Session } from "../src/lib/db";
+import { dayRange, trimmedTotal, workDayOf } from "../src/lib/time";
 
 const H = 3_600_000;
 const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, end_ms: end, open: 0 });

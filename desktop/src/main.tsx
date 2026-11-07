@@ -2,10 +2,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
-import App from "./App";
-import Settings from "./Settings";
-import { applyTheme, getTheme } from "./theme";
-import "./styles.css";
+import PillWindow from "./windows/pill/PillWindow";
+import SettingsWindow from "./windows/settings/SettingsWindow";
+import { applyTheme, getTheme } from "./lib/theme";
+import "./styles/tokens.css";
 
 // Restore before enabling color interpolation in each window.
 const themeRestored = isTauri() ? applyTheme(getTheme()) : Promise.resolve();
@@ -23,5 +23,5 @@ const label = isTauri()
 const isSettings = label === "settings";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>{isSettings ? <Settings /> : <App />}</React.StrictMode>,
+  <React.StrictMode>{isSettings ? <SettingsWindow /> : <PillWindow />}</React.StrictMode>,
 );

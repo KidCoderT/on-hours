@@ -44,7 +44,7 @@ hormozi-timer/
 - [x] Settings window: goal, day start, theme, last 30 days history
 - [ ] Tray icon: Settings, Quit
 - [ ] Windows installer build
-- [ ] Launch on startup
+- [x] Launch on startup
 - [x] History charts / heatmap
 
 ### Later

@@ -18,6 +18,9 @@
     "core:app:allow-set-app-theme",
     "window-state:allow-save-window-state",
     "sql:default",
-    "sql:allow-execute"
+    "sql:allow-execute",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./settings.css"; // before the chart's CSS, matching the original cascade order
 import { useSettings } from "../../hooks/useSettings";
 import { applyTheme, getTheme } from "../../lib/theme";
@@ -89,6 +90,47 @@ function Appearance({ settings, save }: SettingsApi) {
   );
 }
 
+function System() {
+  // Windows owns this setting (Settings → Apps → Startup), so we read it from there
+  // instead of the DB: whatever Windows says is what the switch shows.
+  const [autostart, setAutostart] = useState(false);
+  const devBuild = import.meta.env.DEV; // never register the debug exe to run at login
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const refresh = () => isEnabled().then(setAutostart).catch((e) => console.error("could not read autostart", e));
+    refresh();
+    // The window is hidden, not closed: re-check when it comes back, in case it was changed in Windows.
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
+
+  const onAutostart = async (on: boolean) => {
+    try {
+      await (on ? enable() : disable());
+    } catch (e) {
+      console.error("could not change autostart", e);
+    }
+    setAutostart(await isEnabled()); // show what Windows actually did
+  };
+
+  return (
+    <section className="preferences" aria-labelledby="system-heading">
+      <h2 id="system-heading">System</h2>
+      <label className="row">
+        <span className="row-copy">
+          <span>Open at login</span>
+          <small>{devBuild ? "Available in the installed app." : "Start the timer when you sign in to Windows."}</small>
+        </span>
+        <input
+          type="checkbox" role="switch" className="switch" disabled={devBuild || !isTauri()}
+          checked={autostart} onChange={(e) => onAutostart(e.target.checked)}
+        />
+      </label>
+    </section>
+  );
+}
+
 function SettingsWindow() {
   const settingsApi = useSettings();
 
@@ -114,6 +156,7 @@ function SettingsWindow() {
 
       <DailyRhythm {...settingsApi} />
       <Appearance {...settingsApi} />
+      <System />
       <HistoryChart goalMs={settingsApi.settings.dailyGoalMs} dayStart={settingsApi.settings.dayStart} weekStart={settingsApi.settings.weekStart} />
 
       <button type="button" className="quit" onClick={() => invoke("quit")}>

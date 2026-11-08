@@ -32,16 +32,21 @@ fn migrations() -> Vec<tauri_plugin_sql::Migration> {
 pub fn run() {
     let builder = tauri::Builder::default();
 
-    // Remember where windows were. Position only: sizes come from tauri.conf.json,
-    // and the hidden settings window must not reopen visible.
-    // Must be registered on the builder (not in .setup()): it hooks window creation,
-    // and the config windows already exist by the time .setup() runs.
+    // Desktop-only plugins (their crates are only in Cargo.toml for non-mobile targets).
     #[cfg(desktop)]
-    let builder = builder.plugin(
-        tauri_plugin_window_state::Builder::new()
-            .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION)
-            .build(),
-    );
+    let builder = builder
+        // Start at login. Windows itself stores whether it's on (no DB setting), so the
+        // Settings switch reads/writes it directly via isEnabled / enable / disable.
+        .plugin(tauri_plugin_autostart::Builder::new().build())
+        // Remember where windows were. Position only: sizes come from tauri.conf.json,
+        // and the hidden settings window must not reopen visible.
+        // Must be registered on the builder (not in .setup()): it hooks window creation,
+        // and the config windows already exist by the time .setup() runs.
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION)
+                .build(),
+        );
 
     builder
         // The DB is opened and migrated at startup (see `plugins.sql.preload` in tauri.conf.json).

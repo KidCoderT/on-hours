@@ -1,5 +1,6 @@
 // Run: bun test   (checks the migration SQL and the day/trim math without Tauri)
 import { Database } from "bun:sqlite";
+import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
 import type { Session } from "../src/lib/db";
 import { dayRange, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
@@ -9,9 +10,10 @@ const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, en
 
 test("migration creates tables, defaults, and allows only one open session", async () => {
   const db = new Database(":memory:");
-  // Apply every migration in order, like the app does on startup.
-  for (const f of ["0001_init.sql", "0002_start_day.sql", "0003_show_in_recordings.sql"]) {
-    db.exec(await Bun.file(new URL("../src-tauri/migrations/" + f, import.meta.url)).text());
+  // Apply every migration file in order (0001, 0002, …), like the app does on startup.
+  const dir = new URL("../src-tauri/migrations/", import.meta.url);
+  for (const f of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
+    db.exec(await Bun.file(new URL(f, dir)).text());
   }
   expect(db.query("SELECT value FROM settings WHERE key = 'week_start'").get()).toEqual({ value: "1" });
   expect(db.query("SELECT value FROM settings WHERE key = 'show_in_recordings'").get()).toEqual({ value: "1" });

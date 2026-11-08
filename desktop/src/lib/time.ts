@@ -8,7 +8,8 @@ type Span = { start_ms: number; end_ms: number };
 
 export const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 export const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-export const mondayOf = (d: Date) => addDays(startOfDay(d), -((d.getDay() + 6) % 7));
+/** First day of the week containing `d`; weekStart is 0 (Sun) … 6 (Sat). */
+export const weekStartOf = (d: Date, weekStart: number) => addDays(startOfDay(d), -((d.getDay() - weekStart + 7) % 7));
 
 const at = (d: Date, dayStart: string, plusDays = 0) => {
   const [h, m] = dayStart.split(":").map(Number);

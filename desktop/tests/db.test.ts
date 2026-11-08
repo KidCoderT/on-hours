@@ -2,15 +2,18 @@
 import { Database } from "bun:sqlite";
 import { expect, test } from "bun:test";
 import type { Session } from "../src/lib/db";
-import { dayRange, trimmedTotal, workDayOf } from "../src/lib/time";
+import { dayRange, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
 const H = 3_600_000;
 const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, end_ms: end, open: 0 });
 
 test("migration creates tables, defaults, and allows only one open session", async () => {
-  const sql = await Bun.file(new URL("../src-tauri/migrations/0001_init.sql", import.meta.url)).text();
   const db = new Database(":memory:");
-  db.exec(sql);
+  // Apply every migration in order, like the app does on startup.
+  for (const f of ["0001_init.sql", "0002_start_day.sql"]) {
+    db.exec(await Bun.file(new URL("../src-tauri/migrations/" + f, import.meta.url)).text());
+  }
+  expect(db.query("SELECT value FROM settings WHERE key = 'week_start'").get()).toEqual({ value: "1" });
   expect(db.query("SELECT value FROM settings WHERE key = 'daily_goal_min'").get()).toEqual({ value: "240" });
   db.run("INSERT INTO sessions (start_ms, end_ms) VALUES (1, 1)");
   expect(() => db.run("INSERT INTO sessions (start_ms, end_ms) VALUES (2, 2)")).toThrow();
@@ -33,4 +36,12 @@ test("day start shifts which day a moment belongs to", () => {
   const r = dayRange(new Date(2026, 10, 2), "04:00");
   expect(r.to - r.from).toBe(24 * H);
   expect(new Date(r.from).getHours()).toBe(4);
+});
+
+test("week start picks the first day of the week", () => {
+  const wed = new Date(2026, 10, 4); // Wed 4 Nov 2026
+  expect(weekStartOf(wed, 1).getDate()).toBe(2); // Monday
+  expect(weekStartOf(wed, 0).getDate()).toBe(1); // Sunday
+  expect(weekStartOf(wed, 3).getDate()).toBe(4); // Wednesday itself
+  expect(weekStartOf(wed, 6).getDate()).toBe(31); // Saturday 31 Oct
 });

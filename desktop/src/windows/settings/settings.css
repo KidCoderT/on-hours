@@ -22,7 +22,7 @@
 .row + .row { border-top: 1px solid var(--edge); }
 .row-copy { display: flex; flex-direction: column; gap: 4px; line-height: 20px; min-width: 0; }
 .row-copy small { color: var(--muted); font-size: 12px; line-height: 18px; }
-.row input, .field {
+.row input, .row select, .field {
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--edge);
@@ -32,13 +32,23 @@
   font-variant-numeric: tabular-nums;
 }
 .row input { padding: 0 10px; }
-.row > input { width: 112px; flex: none; }
+/* Own arrow instead of the browser's; mid-grey reads on both themes. */
+.row select {
+  appearance: none;
+  padding: 0 28px 0 10px;
+  cursor: pointer;
+  background: var(--surface) no-repeat right 10px center / 12px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%238a8a8a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+.row select:focus-visible { outline: 2px solid var(--icon); outline-offset: 3px; }
+.row select option { background: var(--surface); color: var(--ink); }
+.row > input, .row > select { width: 112px; flex: none; }
 .field { display: flex; align-items: center; width: 112px; flex: none; padding-right: 12px; gap: 5px; color: var(--muted); }
 .field input { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; height: 32px; text-align: right; }
 .field input::-webkit-inner-spin-button { appearance: none; margin: 0; }
 .field:has(input:focus-visible) { outline: 2px solid var(--icon); outline-offset: 3px; }
 .field input:focus-visible { outline: none; }
-.row > input:hover, .field:hover { border-color: var(--icon); }
+.row > input:hover, .row > select:hover, .field:hover { border-color: var(--icon); }
 
 .segmented { display: flex; flex: none; padding: 3px; gap: 2px; background: var(--hover); border-radius: 9px; }
 .segmented label { position: relative; }

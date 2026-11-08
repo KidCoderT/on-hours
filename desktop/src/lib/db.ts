@@ -5,9 +5,11 @@ import Database from "@tauri-apps/plugin-sql";
 export const db = Database.get("sqlite:hormozi.db");
 
 export type Session = { id: number; start_ms: number; end_ms: number; open: number };
-export type Settings = { dailyGoalMs: number; dayStart: string };
+/** weekStart: 0 = Sunday … 6 = Saturday */
+export type Settings = { dailyGoalMs: number; dayStart: string; weekStart: number };
+export type SettingKey = "daily_goal_min" | "day_start" | "week_start";
 
-export const DEFAULT_SETTINGS: Settings = { dailyGoalMs: 4 * 3_600_000, dayStart: "00:00" };
+export const DEFAULT_SETTINGS: Settings = { dailyGoalMs: 4 * 3_600_000, dayStart: "00:00", weekStart: 1 };
 
 /* ---------- sessions ---------- */
 
@@ -49,8 +51,8 @@ export async function recoverOpenSession(staleAfterMs = 2 * 60_000): Promise<Ses
 export async function getSettings(): Promise<Settings> {
   const rows = await db.select<{ key: string; value: string }[]>("SELECT key, value FROM settings");
   const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  return { dailyGoalMs: Number(map.daily_goal_min) * 60_000, dayStart: map.day_start };
+  return { dailyGoalMs: Number(map.daily_goal_min) * 60_000, dayStart: map.day_start, weekStart: Number(map.week_start ?? 1) };
 }
 
-export const setSetting = (key: "daily_goal_min" | "day_start", value: string) =>
+export const setSetting = (key: SettingKey, value: string) =>
   db.execute("UPDATE settings SET value = $1 WHERE key = $2", [value, key]);

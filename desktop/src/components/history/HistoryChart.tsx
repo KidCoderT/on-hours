@@ -7,11 +7,11 @@ import WeekBars from "./WeekBars";
 import WeekTimeline from "./WeekTimeline";
 import "./history.css";
 
-type Props = { goalMs: number; dayStart: string };
+type Props = { goalMs: number; dayStart: string; weekStart: number };
 type View = "totals" | "timeline";
 const VIEWS: View[] = ["totals", "timeline"];
 
-function HistoryChart({ goalMs, dayStart }: Props) {
+function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
   const [offset, setOffset] = useState(0); // weeks back from this week
   const [picked, setPicked] = useState<number | null>(null);
   const wheelLock = useRef(0);
@@ -20,7 +20,7 @@ function HistoryChart({ goalMs, dayStart }: Props) {
     localStorage.setItem("history-view", v);
     setView(v);
   };
-  const { monday, days, elapsed, total, weekPct, maxOffset, worked } = useWeekHistory(offset, dayStart);
+  const { first, days, elapsed, total, weekPct, maxOffset, worked } = useWeekHistory(offset, dayStart, weekStart);
 
   const active = picked ?? elapsed - 1;
   const day = days[Math.max(0, active)];
@@ -41,7 +41,7 @@ function HistoryChart({ goalMs, dayStart }: Props) {
     page(delta > 0 ? -1 : 1); // down/right = newer
   };
 
-  const range = `${fmtDate(monday, { month: "short", day: "numeric" })} – ${fmtDate(addDays(monday, 6), { month: "short", day: "numeric" })}`;
+  const range = `${fmtDate(first, { month: "short", day: "numeric" })} – ${fmtDate(addDays(first, 6), { month: "short", day: "numeric" })}`;
 
   return (
     <section className="history" aria-labelledby="history-heading">

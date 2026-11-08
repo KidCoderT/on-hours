@@ -6,6 +6,9 @@ import { useSettings } from "../../hooks/useSettings";
 import { applyTheme, getTheme } from "../../lib/theme";
 import HistoryChart from "../../components/history/HistoryChart";
 
+// Jan 7 2024 was a Sunday, so index 0 = Sunday, in the user's language.
+const WEEKDAYS = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 7 + i).toLocaleDateString(undefined, { weekday: "long" }));
+
 type SettingsApi = ReturnType<typeof useSettings>;
 
 function DailyRhythm({ settings, loaded, save }: SettingsApi) {
@@ -28,6 +31,8 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
     if (value) save("day_start", value, { ...settings, dayStart: value });
   };
 
+  const onWeekStart = (value: string) => save("week_start", value, { ...settings, weekStart: Number(value) });
+
   return (
     <section className="preferences" aria-labelledby="daily-heading">
       <h2 id="daily-heading">Daily rhythm</h2>
@@ -44,6 +49,12 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
       <label className="row">
         <span className="row-copy"><span>Day starts at</span><small>When a new day begins.</small></span>
         <input aria-label="Day starts at" type="time" value={settings.dayStart} onChange={(e) => onDayStart(e.target.value)} />
+      </label>
+      <label className="row">
+        <span className="row-copy"><span>Week starts on</span><small>First column of the history chart.</small></span>
+        <select aria-label="Week starts on" value={settings.weekStart} onChange={(e) => onWeekStart(e.target.value)}>
+          {WEEKDAYS.map((name, i) => <option key={i} value={i}>{name}</option>)}
+        </select>
       </label>
     </section>
   );
@@ -93,7 +104,7 @@ function SettingsWindow() {
 
       <DailyRhythm {...settingsApi} />
       <Appearance />
-      <HistoryChart goalMs={settingsApi.settings.dailyGoalMs} dayStart={settingsApi.settings.dayStart} />
+      <HistoryChart goalMs={settingsApi.settings.dailyGoalMs} dayStart={settingsApi.settings.dayStart} weekStart={settingsApi.settings.weekStart} />
 
       <button type="button" className="quit" onClick={() => invoke("quit")}>
         Quit Hormozi Timer

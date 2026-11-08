@@ -1,31 +1,31 @@
 import { useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { firstSessionStart, sessionsBetween, type Session } from "../../lib/db";
-import { addDays, dayRange, mondayOf, startOfDay, trimmedTotal, WEEK, workDayOf } from "../../lib/time";
+import { addDays, dayRange, weekStartOf, startOfDay, trimmedTotal, WEEK, workDayOf } from "../../lib/time";
 
 /** Worked time per day for the week `offset` weeks back, plus the week before it for deltas. */
-export function useWeekHistory(offset: number, dayStart: string) {
+export function useWeekHistory(offset: number, dayStart: string, weekStart: number) {
   const today = startOfDay(workDayOf(new Date(), dayStart));
-  const thisMonday = mondayOf(today);
-  const monday = addDays(thisMonday, -7 * offset);
+  const thisWeekStart = weekStartOf(today, weekStart);
+  const first = addDays(thisWeekStart, -7 * offset);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [maxOffset, setMaxOffset] = useState(0); // can't page back past the first session
 
   // Load this week plus the week before it (for "vs last week / vs yesterday").
-  const from = dayRange(addDays(monday, -7), dayStart).from;
-  const to = dayRange(addDays(monday, 6), dayStart).to;
+  const from = dayRange(addDays(first, -7), dayStart).from;
+  const to = dayRange(addDays(first, 6), dayStart).to;
 
   useEffect(() => {
     if (!isTauri()) return; // design preview: empty chart
     const load = () => {
       sessionsBetween(from, to).then(setSessions);
-      firstSessionStart().then((t) => setMaxOffset(t ? Math.round((+thisMonday - +mondayOf(new Date(t))) / WEEK) : 0));
+      firstSessionStart().then((t) => setMaxOffset(t ? Math.round((+thisWeekStart - +weekStartOf(new Date(t), weekStart)) / WEEK) : 0));
     };
     load();
     // The settings window is hidden, not closed, so refresh each time it's brought back.
     window.addEventListener("focus", load);
     return () => window.removeEventListener("focus", load);
-  }, [from, to, +thisMonday]);
+  }, [from, to, +thisWeekStart]);
 
   // ponytail: a running session counts up to "now" but only refreshes on focus / paging; add a timer if a live chart matters.
   const now = Date.now();
@@ -36,7 +36,7 @@ export function useWeekHistory(offset: number, dayStart: string) {
   };
 
   const days = Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(monday, i);
+    const date = addDays(first, i);
     const { from, to } = dayRange(date, dayStart);
     // Each session's slice of this day, for the timeline view.
     const spans = live
@@ -51,5 +51,5 @@ export function useWeekHistory(offset: number, dayStart: string) {
   const prevTotal = days.slice(0, elapsed).reduce((s, d) => s + worked(addDays(d.date, -7)), 0);
   const weekPct = prevTotal ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
 
-  return { monday, days, elapsed, total, weekPct, maxOffset, worked };
+  return { first, days, elapsed, total, weekPct, maxOffset, worked };
 }

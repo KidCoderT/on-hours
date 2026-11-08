@@ -6,12 +6,20 @@ fn quit(app: tauri::AppHandle) {
 
 // Never edit a migration that has shipped; add the next version instead.
 fn migrations() -> Vec<tauri_plugin_sql::Migration> {
-    vec![tauri_plugin_sql::Migration {
-        version: 1,
-        description: "init",
-        sql: include_str!("../migrations/0001_init.sql"),
-        kind: tauri_plugin_sql::MigrationKind::Up,
-    }]
+    vec![
+        tauri_plugin_sql::Migration {
+            version: 1,
+            description: "init",
+            sql: include_str!("../migrations/0001_init.sql"),
+            kind: tauri_plugin_sql::MigrationKind::Up,
+        },
+        tauri_plugin_sql::Migration {
+            version: 2,
+            description: "week start",
+            sql: include_str!("../migrations/0002_start_day.sql"),
+            kind: tauri_plugin_sql::MigrationKind::Up,
+        },
+    ]
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

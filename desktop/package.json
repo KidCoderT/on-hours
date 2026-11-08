@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "shots": "node ../scripts/shots/shoot.mjs"
+    "shots": "node ../scripts/shots/shoot.mjs",
+    "compare": "node ../scripts/shots/compare.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

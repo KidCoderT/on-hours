@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Design comparison</title>
+<style>
+  body { margin: 0; font: 13px/18px "Segoe UI", system-ui, sans-serif; color: #222; background: #f4f4f4; }
+  .bar { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; padding: 12px 16px; background: #fff; border-bottom: 1px solid #ddd; }
+  .bar h1 { margin: 0 8px 0 0; font-size: 15px; }
+  fieldset { display: flex; gap: 10px; margin: 0; padding: 0; border: 0; }
+  legend { float: left; margin-right: 8px; color: #666; }
+  table { border-collapse: separate; border-spacing: 0; }
+  thead th { position: sticky; top: 0; z-index: 1; background: #fff; border-bottom: 1px solid #ddd; padding: 10px 16px; text-align: left; font-size: 14px; }
+  thead th:first-child { left: 0; z-index: 2; }
+  tbody th { position: sticky; left: 0; background: #f4f4f4; text-align: left; vertical-align: top; padding: 16px; width: 140px; font-weight: 600; }
+  tbody th small { display: block; font-weight: 400; color: #777; margin-top: 4px; }
+  td { vertical-align: top; padding: 16px; border-bottom: 1px solid #e2e2e2; }
+  img { display: block; max-width: none; }
+  img.checker { background: repeating-conic-gradient(#ddd 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+  .gap { display: inline-block; padding: 8px 12px; border: 1px dashed #aaa; color: #888; }
+</style>
+<div class="bar">
+  <h1>Design comparison</h1>
+  <fieldset><legend>Wallpaper</legend>
+    <label><input type="radio" name="bg" value="busy-light" checked> busy-light</label>
+    <label><input type="radio" name="bg" value="dark"> dark</label>
+    <label><input type="radio" name="bg" value="grey"> grey</label>
+    <label><input type="radio" name="bg" value="none"> none (transparent)</label>
+  </fieldset>
+  <fieldset><legend>Theme</legend>
+    <label><input type="radio" name="theme" value="light" checked> light</label>
+    <label><input type="radio" name="theme" value="dark"> dark</label>
+  </fieldset>
+  <fieldset><legend>History chart</legend>
+    <label><input type="radio" name="view" value="totals" checked> totals</label>
+    <label><input type="radio" name="view" value="timeline"> timeline</label>
+  </fieldset>
+</div>
+<table>
+  <thead><tr><th></th><th scope="col">baseline</th><th scope="col">instrument</th><th scope="col">ledger</th><th scope="col">panel</th></tr></thead>
+  <tbody>
+<tr><th scope="row">running-under</th><td><img data-v="baseline" data-kind="pill" data-state="running-under" alt="baseline running-under"><span class="gap" hidden>not captured</span></td><td><img data-v="instrument" data-kind="pill" data-state="running-under" alt="instrument running-under"><span class="gap" hidden>not captured</span></td><td><img data-v="ledger" data-kind="pill" data-state="running-under" alt="ledger running-under"><span class="gap" hidden>not captured</span></td><td><img data-v="panel" data-kind="pill" data-state="running-under" alt="panel running-under"><span class="gap" hidden>not captured</span></td></tr>
+<tr><th scope="row">running-near</th><td><img data-v="baseline" data-kind="pill" data-state="running-near" alt="baseline running-near"><span class="gap" hidden>not captured</span></td><td><img data-v="instrument" data-kind="pill" data-state="running-near" alt="instrument running-near"><span class="gap" hidden>not captured</span></td><td><img data-v="ledger" data-kind="pill" data-state="running-near" alt="ledger running-near"><span class="gap" hidden>not captured</span></td><td><img data-v="panel" data-kind="pill" data-state="running-near" alt="panel running-near"><span class="gap" hidden>not captured</span></td></tr>
+<tr><th scope="row">running-over</th><td><img data-v="baseline" data-kind="pill" data-state="running-over" alt="baseline running-over"><span class="gap" hidden>not captured</span></td><td><img data-v="instrument" data-kind="pill" data-state="running-over" alt="instrument running-over"><span class="gap" hidden>not captured</span></td><td><img data-v="ledger" data-kind="pill" data-state="running-over" alt="ledger running-over"><span class="gap" hidden>not captured</span></td><td><img data-v="panel" data-kind="pill" data-state="running-over" alt="panel running-over"><span class="gap" hidden>not captured</span></td></tr>
+<tr><th scope="row">paused-recent</th><td><img data-v="baseline" data-kind="pill" data-state="paused-recent" alt="baseline paused-recent"><span class="gap" hidden>not captured</span></td><td><img data-v="instrument" data-kind="pill" data-state="paused-recent" alt="instrument paused-recent"><span class="gap" hidden>not captured</span></td><td><img data-v="ledger" data-kind="pill" data-state="paused-recent" alt="ledger paused-recent"><span class="gap" hidden>not captured</span></td><td><img data-v="panel" data-kind="pill" data-state="paused-recent" alt="panel paused-recent"><span class="gap" hidden>not captured</span></td></tr>
+<tr><th scope="row">paused-long</th><td><img data-v="baseline" data-kind="pill" data-state="paused-long" alt="baseline paused-long"><span class="gap" hidden>not captured</span></td><td><img data-v="instrument" data-kind="pill" data-state="paused-long" alt="instrument paused-long"><span class="gap" hidden>not captured</span></td><td><img data-v="ledger" data-kind="pill" data-state="paused-long" alt="ledger paused-long"><span class="gap" hidden>not captured</span></td><td><img data-v="panel" data-kind="pill" data-state="paused-long" alt="panel paused-long"><span class="gap" hidden>not captured</span></td></tr>
+<tr><th scope="row">caution<small>extra state, captured outside the harness; composites only</small></th><td><span class="gap">this design has no caution state</span></td><td><span class="gap">this design has no caution state</span></td><td><span class="gap">this design has no caution state</span></td><td><img data-v="panel" data-kind="extra" data-state="caution" alt="panel caution"><span class="gap" hidden>not captured</span></td></tr>
+<tr><th scope="row">history-window<small>wallpaper does not apply</small></th><td><img data-v="baseline" data-kind="history" data-state="" alt="baseline history-window"><span class="gap" hidden>not captured</span></td><td><img data-v="instrument" data-kind="history" data-state="" alt="instrument history-window"><span class="gap" hidden>not captured</span></td><td><img data-v="ledger" data-kind="history" data-state="" alt="ledger history-window"><span class="gap" hidden>not captured</span></td><td><img data-v="panel" data-kind="history" data-state="" alt="panel history-window"><span class="gap" hidden>not captured</span></td></tr>
+  </tbody>
+</table>
+<script>
+  const pick = (n) => document.querySelector('input[name="' + n + '"]:checked').value;
+  function file(img, bg, theme, view) {
+    const { kind, state } = img.dataset;
+    if (kind === "history") return "history-" + view + "-" + theme + ".png";
+    if (bg === "none") return kind === "extra" ? null : "pill-" + state + "-" + theme + ".png";
+    return (kind === "extra" ? "extra-" : "over-") + (kind === "extra" ? state + "-over-" : "") + bg + "-" + (kind === "extra" ? "" : state + "-") + theme + ".png";
+  }
+  function render() {
+    const bg = pick("bg"), theme = pick("theme"), view = pick("view");
+    for (const img of document.querySelectorAll("td img")) {
+      const f = file(img, bg, theme, view);
+      const gap = img.nextElementSibling;
+      img.classList.toggle("checker", bg === "none" && img.dataset.kind !== "history");
+      img.onerror = () => { img.hidden = true; gap.hidden = false; };
+      img.hidden = !f; gap.hidden = !!f;
+      if (f) img.src = "shots/" + img.dataset.v + "/" + f;
+    }
+  }
+  document.querySelectorAll(".bar input").forEach((i) => i.addEventListener("change", render));
+  render();
+</script>
+</html>

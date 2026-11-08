@@ -24,6 +24,10 @@ export const sessionsBetween = (from: number, to: number) =>
 export const firstSessionStart = async () =>
   (await db.select<{ t: number | null }[]>("SELECT MIN(start_ms) AS t FROM sessions"))[0]?.t ?? null;
 
+/** End of the most recent closed session, or null: how long the user has been paused. */
+export const lastSessionEnd = async () =>
+  (await db.select<{ t: number | null }[]>("SELECT MAX(end_ms) AS t FROM sessions WHERE open = 0"))[0]?.t ?? null;
+
 export const startSession = (now = Date.now()) =>
   db.execute("INSERT INTO sessions (start_ms, end_ms, open) VALUES ($1, $2, 1)", [now, now]);
 

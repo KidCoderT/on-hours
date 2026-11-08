@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { firstSessionStart, sessionsBetween, type Session } from "../../lib/db";
+import { fixture, fixtureSessions } from "../../lib/fixture";
 import { addDays, dayRange, weekStartOf, startOfDay, trimmedTotal, WEEK, workDayOf } from "../../lib/time";
 
 /** Worked time per day for the week `offset` weeks back, plus the week before it for deltas. */
@@ -8,8 +9,8 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
   const today = startOfDay(workDayOf(new Date(), dayStart));
   const thisWeekStart = weekStartOf(today, weekStart);
   const first = addDays(thisWeekStart, -7 * offset);
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [maxOffset, setMaxOffset] = useState(0); // can't page back past the first session
+  const [sessions, setSessions] = useState<Session[]>(() => (fixture ? fixtureSessions(Date.now()) : []));
+  const [maxOffset, setMaxOffset] = useState(fixture ? 1 : 0); // can't page back past the first session
 
   // Load this week plus the week before it (for "vs last week / vs yesterday").
   const from = dayRange(addDays(first, -7), dayStart).from;

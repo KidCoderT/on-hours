@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { DEFAULT_SETTINGS, getSettings, setSetting, type SettingKey, type Settings } from "../lib/db";
+import { fixture } from "../lib/fixture";
 
 // Each window is its own JS runtime, so settings are shared through the DB
 // plus a "settings-changed" event that tells every window to reload.
@@ -9,7 +10,7 @@ const CHANGED = "settings-changed";
 
 export function useSettings() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(fixture !== null); // harness: the defaults are the fixture
 
   useEffect(() => {
     if (!isTauri()) return; // design preview in a plain browser: defaults

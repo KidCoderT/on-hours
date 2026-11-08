@@ -28,7 +28,7 @@ Where the look fights the purpose:
 6. **Name and look disagree.** "Hormozi Timer" promises brash. The UI is a polite Fluent panel. Either could be right; currently it is a non-decision.
 7. Things that are already good and worth keeping: the 3s pulse, the theme crossfade, tabular numerals, the goal gridline, the reduced-motion handling, the timeline view.
 
-## 3. Three directions
+## 3. Four directions
 
 Deliberately not included: "hustle brutalism" (black, Impact caps, red, grind quotes). It is the obvious reading of the name and it is what every productivity YouTuber's app already looks like.
 
@@ -104,6 +104,32 @@ This is the one you probably would not pick. The README already calls the pill a
 - Shimeji / Bongo Cat desktop mascots: a borderless sprite that lives on top of other windows and reacts to the user.
 
 **Rejects.** Looking professional, charts as the primary view, neutral greys, the grind connotation of the name (the product would probably want a different name under this direction).
+
+---
+
+### D. The Panel
+
+**Thesis.** It belongs to the OS, because a tool you touch fifty times a day should be invisible furniture, not a personality.
+
+Trust through familiarity: system font, system controls, native window chrome, no custom anything. The number is quiet because quiet things don't get closed. Rejects the idea that a timer needs an attitude.
+
+**First 3 seconds.** "Did Windows always have this?" No reaction at all is the goal. The user should not be able to say when they first noticed it, only that it has always been there, like the clock in the taskbar.
+
+**Decisions.**
+- Type: the platform UI font and nothing else. Segoe UI Variable on Windows, SF Pro on macOS, at the sizes the OS uses for its own panels (body 14px, caption 12px, title 20px semibold). Tabular numerals via the font's own feature, no display face, no custom weight for the number.
+- Colour: the system palette only. Surfaces, text, and hairlines come from the OS's light and dark tokens (Fluent's layer and text colours; Mica or acrylic behind the settings window where available). The only chromatic colour is the OS accent colour, taken from the user's own setting, used once for the running state. Goal met is the OS's standard success green; paused is plain secondary text. Nothing is designed; it is inherited.
+- Density: whatever the OS settings app uses. Rows of 48 to 64px, 16px gutters, labels left and controls right. The history chart adopts the same metrics as a Windows Settings graph: thin bars, system caption labels, no hover drama.
+- Motion: only what the platform does by default. Native control transitions, the system fade on open. No custom pulse, no crossfades, no eased bars.
+- Chrome: native. The pill keeps a system-drawn window shadow and a system corner radius (8px on Windows 11, Mica-tinted surface) and looks like a flyout detached from the taskbar. The settings window gets a real title bar, a real close button, and sits in the taskbar like any app. Settings is reached the way every Windows tray tool is reached: a tray icon with a context menu, and a right-click on the pill that shows the same menu.
+- Light/dark: follows the system, always, with no in-app override. Soft in the platform's way: 4px on controls, 8px on windows, nothing rounder.
+- The pill reads as a widget the OS might ship: time, a small play/pause control, and a status glyph from the system icon font instead of a coloured dot.
+
+**References.**
+- Windows 11 Settings and the taskbar clock flyout: the surface, spacing, and control inventory are the spec. Nothing is added that is not already in Fluent.
+- macOS menu bar extras (Battery, Wi-Fi, Time Machine): a glanceable number in the system font, a dropdown with system controls, zero brand.
+- Dieter Rams, read the other way round: not "one bold accent" but "as little design as possible". The product disappears into its context.
+
+**Rejects.** Custom fonts, custom colours, an in-app theme switch, the coloured dot, any animation the OS does not provide, and the whole idea that the app has a look. If someone screenshots it and asks "what app is that?", the direction has failed.
 
 ## 4. Pick
 

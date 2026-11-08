@@ -7,7 +7,7 @@ Inspired by Alex Hormozi's rule: **when you work, turn the timer on. When you st
 The app is a small pill that sits on your screen like a desktop pet: no window frame, no taskbar entry. It shows today's total, has a play/pause button, and a status dot that tells you where you stand against your daily minimum.
 
 | Dot | Meaning |
-|---|---|
+| --- | --- |
 | 🔴 Red | Paused, goal not met |
 | 🟡 Yellow | Running, goal not met |
 | 🟢 Green | Goal met (running or paused) |
@@ -31,25 +31,30 @@ hormozi-timer/
 ## Features / TODO
 
 ### MVP
-- [ ] Pill window: frameless, transparent, always on top, hidden from taskbar
-- [ ] Drag to move; position remembered between launches
-- [ ] Play/pause toggle; today's total in `H:MM:SS`
-- [ ] Status dot (red / yellow / green) with pulse while running
-- [ ] Light and dark theme (follows Windows, can be overridden)
-- [ ] Sessions saved to SQLite; crash-safe (end time saved every 30s)
-- [ ] Daily minimum goal (set in settings)
+
+- [x] Pill window: frameless, transparent, always on top, hidden from taskbar
+- [x] Drag to move; position remembered between launches
+- [x] Play/pause toggle; today's total in `H:MM:SS`
+- [x] Status dot (red / yellow / green) with pulse while running
+- [x] Light and dark theme (follows Windows, can be overridden)
+- [x] Sessions saved to SQLite; crash-safe (end time saved every 30s)
+- [x] Daily minimum goal (set in settings)
+- [ ] Make it configurable so screen recorders cannot see it
 - [ ] Configurable day start (default midnight); sessions split at the boundary
 - [ ] Settings window: goal, day start, theme, last 30 days history
 - [ ] Tray icon: Settings, Quit
 - [ ] Windows installer build
+- [ ] Launch on startup
+- [x] History charts / heatmap
 
 ### Later
+
 - [ ] Global hotkey to start/stop
-- [ ] Launch on startup
 - [ ] Idle detection (auto-pause when away)
-- [ ] History charts / heatmap
 - [ ] CSV export
 - [ ] Landing page (`web/`)
+- [ ] Online leaderboard shown on website
+- [ ] a number showing how many live studying
 
 ## Development
 

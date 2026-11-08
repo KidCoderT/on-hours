@@ -39,7 +39,7 @@ hormozi-timer/
 - [x] Light and dark theme (follows Windows, can be overridden)
 - [x] Sessions saved to SQLite; crash-safe (end time saved every 30s)
 - [x] Daily minimum goal (set in settings)
-- [ ] Make it configurable so screen recorders cannot see it
+- [x] Make it configurable so screen recorders cannot see it
 - [x] Configurable day start (default midnight); sessions split at the boundary
 - [x] Settings window: goal, day start, theme, last 30 days history
 - [ ] Tray icon: Settings, Quit

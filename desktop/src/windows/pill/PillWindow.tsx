@@ -1,4 +1,6 @@
-import { Window } from "@tauri-apps/api/window";
+import { useEffect } from "react";
+import { Window, getCurrentWindow } from "@tauri-apps/api/window";
+import { isTauri } from "@tauri-apps/api/core";
 import { useSettings } from "../../hooks/useSettings";
 import { useWindowPosition } from "../../hooks/useWindowPosition";
 import { fmtClock } from "../../lib/format";
@@ -17,6 +19,15 @@ function PillWindow() {
   const { settings, loaded } = useSettings();
   const { elapsed, running, done, ready, toggle } = useTimer(settings, loaded);
   useWindowPosition();
+
+  // Hide the pill from screen recordings / shares when turned off in settings.
+  // useSettings reloads on "settings-changed", so this re-runs the moment the toggle flips.
+  useEffect(() => {
+    if (!isTauri() || !loaded) return;
+    getCurrentWindow()
+      .setContentProtected(!settings.showInRecordings)
+      .catch((e) => console.error("could not change recording visibility", e));
+  }, [loaded, settings.showInRecordings]);
 
   const status = done ? "Daily goal met" : running ? "Working, daily goal not met" : "Paused, daily goal not met";
 

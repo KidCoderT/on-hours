@@ -10,10 +10,11 @@ const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, en
 test("migration creates tables, defaults, and allows only one open session", async () => {
   const db = new Database(":memory:");
   // Apply every migration in order, like the app does on startup.
-  for (const f of ["0001_init.sql", "0002_start_day.sql"]) {
+  for (const f of ["0001_init.sql", "0002_start_day.sql", "0003_show_in_recordings.sql"]) {
     db.exec(await Bun.file(new URL("../src-tauri/migrations/" + f, import.meta.url)).text());
   }
   expect(db.query("SELECT value FROM settings WHERE key = 'week_start'").get()).toEqual({ value: "1" });
+  expect(db.query("SELECT value FROM settings WHERE key = 'show_in_recordings'").get()).toEqual({ value: "1" });
   expect(db.query("SELECT value FROM settings WHERE key = 'daily_goal_min'").get()).toEqual({ value: "240" });
   db.run("INSERT INTO sessions (start_ms, end_ms) VALUES (1, 1)");
   expect(() => db.run("INSERT INTO sessions (start_ms, end_ms) VALUES (2, 2)")).toThrow();

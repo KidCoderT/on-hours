@@ -60,7 +60,10 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
   );
 }
 
-function Appearance() {
+function Appearance({ settings, save }: SettingsApi) {
+  const onRecordings = (show: boolean) =>
+    save("show_in_recordings", show ? "1" : "0", { ...settings, showInRecordings: show });
+
   return (
     <section className="preferences" aria-labelledby="appearance-heading">
       <h2 id="appearance-heading">Appearance</h2>
@@ -75,6 +78,13 @@ function Appearance() {
           ))}
         </div>
       </div>
+      <label className="row">
+        <span className="row-copy"><span>Show timer in screen recordings</span><small>Off hides the pill from recordings and screen shares.</small></span>
+        <input
+          type="checkbox" role="switch" className="switch"
+          checked={settings.showInRecordings} onChange={(e) => onRecordings(e.target.checked)}
+        />
+      </label>
     </section>
   );
 }
@@ -103,7 +113,7 @@ function SettingsWindow() {
       </header>
 
       <DailyRhythm {...settingsApi} />
-      <Appearance />
+      <Appearance {...settingsApi} />
       <HistoryChart goalMs={settingsApi.settings.dailyGoalMs} dayStart={settingsApi.settings.dayStart} weekStart={settingsApi.settings.weekStart} />
 
       <button type="button" className="quit" onClick={() => invoke("quit")}>

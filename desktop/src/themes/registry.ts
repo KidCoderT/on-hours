@@ -1,11 +1,14 @@
 import BaselinePill from "./baseline/Pill";
 import InstrumentPill from "./instrument/Pill";
 import LedgerPill from "./ledger/Pill";
+// App palettes: the settings window takes the active theme's colours and font (Baseline is the default).
+import "./instrument/app.css";
+import "./ledger/app.css";
 import type { PillTheme } from "./types";
 
-// Adding a theme: a folder with Pill.tsx + pill.css (rules in types.ts), one entry here,
-// one id in scripts/shots/shoot.mjs. Themes are imported eagerly: they are small, and a failed
-// lazy chunk would leave an invisible pill with no way back.
+// Adding a theme: a folder with Pill.tsx + pill.css (rules in types.ts), an optional app.css
+// imported above, one entry here, one id in scripts/shots/shoot.mjs. Themes are imported eagerly:
+// they are small, and a failed lazy chunk would leave an invisible pill with no way back.
 export const THEMES = [
   {
     id: "baseline",

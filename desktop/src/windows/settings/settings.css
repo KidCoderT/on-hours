@@ -42,7 +42,7 @@
   padding-top: 0;
 }
 
-/* Preferences follow the record under a heavy rule, like the back matter of an account book. */
+/* Preferences follow the record under their own large heading. */
 .settings h2.back-matter {
   margin: 30px 0 8px;
   font-size: 20px;

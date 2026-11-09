@@ -7,6 +7,7 @@ import { useSettings } from "../../hooks/useSettings";
 import { LONG_PAUSE_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
 import HistoryChart from "../../components/history/HistoryChart";
+import { themeById } from "../../themes/registry";
 import StylePicker from "./StylePicker";
 
 // Jan 7 2024 was a Sunday, so index 0 = Sunday, in the user's language.
@@ -166,6 +167,13 @@ function System() {
 function SettingsWindow() {
   const settingsApi = useSettings();
   const { settings } = settingsApi;
+  const appTheme = themeById(settings.pillTheme).id;
+
+  // Like an editor theme: the pill style also sets this window's colours and font, never its layout.
+  // The palettes live in themes/<id>/app.css; with none set, the app's own tokens apply.
+  useEffect(() => {
+    document.documentElement.dataset.appTheme = appTheme;
+  }, [appTheme]);
 
   // Closing the window only hides it, so the pill can reopen it.
   useEffect(() => {

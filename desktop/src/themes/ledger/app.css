@@ -1,0 +1,30 @@
+/* Ledger's palette and type for the rest of the app (the settings window). Layout is the app's own.
+   Same variable names as styles/tokens.css; applied when <html data-app-theme="ledger">.
+   Pencil grey is a shade darker than on the pill, so small print stays readable on paper. */
+:root[data-app-theme="ledger"] {
+  --surface: #f4f1ea;
+  --ink: #1f1d1a;
+  --muted: #67625a;
+  --edge: #d6d9d2;
+  --icon: #5e584f;
+  --hover: #ebe6da;
+  --pressed: #e1dbcd;
+  --red: #a8322a;
+  --yellow: #85641b;
+  --green: #2f6b4a;
+  --app-font: "Source Serif 4 Variable", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-app-theme="ledger"] {
+    --surface: #25282c;
+    --ink: #ece6d8;
+    --muted: #a39e93;
+    --edge: #3a3f43;
+    --icon: #b9b3a6;
+    --hover: #2e3236;
+    --pressed: #363a3f;
+    --red: #e3806f;
+    --yellow: #d9b25e;
+    --green: #86be98;
+  }
+}

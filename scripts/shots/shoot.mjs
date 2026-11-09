@@ -120,19 +120,28 @@ for (const theme of PILL_THEMES) {
   await ctx.close();
 }
 
-// 3. Settings window, both modes, both chart views.
-for (const mode of MODES) {
-  for (const view of ["totals", "timeline"]) {
-    const { ctx, page } = await openPage(mode, HISTORY, `?window=settings&fixture=running-under`, "main.settings");
-    await page.evaluate((v) => localStorage.setItem("history-view", v), view);
-    await page.reload();
-    await page.waitForSelector("main.settings");
-    await page.evaluate(() => document.fonts.ready);
-    // The window is a fixed-height inner scroller, so grow the viewport to show the whole page.
-    const height = await page.evaluate(() => document.querySelector("main").scrollHeight);
-    await page.setViewportSize({ width: HISTORY.width, height });
-    save(`settings-${view}-${mode}.png`, await shot(page));
-    await ctx.close();
+// 3. Settings window in each theme's palette and font, both modes, both chart views.
+for (const theme of PILL_THEMES) {
+  for (const mode of MODES) {
+    for (const view of ["totals", "timeline"]) {
+      const ready = `html[data-app-theme="${theme}"] main.settings`;
+      const { ctx, page } = await openPage(mode, HISTORY, `?window=settings&fixture=running-under&theme=${theme}`, ready);
+      await page.evaluate((v) => localStorage.setItem("history-view", v), view);
+      await page.reload();
+      await page.waitForSelector(ready);
+      await page.evaluate(() => document.fonts.ready);
+      // Wider fonts (mono, serif) must not push anything past the window's edge.
+      const wide = await page.evaluate(() => {
+        const main = document.querySelector("main");
+        return main.scrollWidth > main.clientWidth ? main.scrollWidth : 0;
+      });
+      if (wide) problems.push(`settings ${theme} ${mode} ${view}: content is ${wide}px wide`);
+      // The window is a fixed-height inner scroller, so grow the viewport to show the whole page.
+      const height = await page.evaluate(() => document.querySelector("main").scrollHeight);
+      await page.setViewportSize({ width: HISTORY.width, height });
+      save(`settings-${theme}-${view}-${mode}.png`, await shot(page));
+      await ctx.close();
+    }
   }
 }
 

@@ -27,3 +27,10 @@ export const ChevronLeftIcon = () => (
 export const ChevronRightIcon = () => (
   <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5" /></svg>
 );
+
+// An open account book: two pages and a spine (Ledger theme's settings button).
+export const BookIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round">
+    <path d="M8 4.2C6.6 3.2 4.6 3 2.5 3.2v8.9c2.1-.2 4.1 0 5.5 1 1.4-1 3.4-1.2 5.5-1V3.2c-2.1-.2-4.1 0-5.5 1Zm0 0v8.9" />
+  </svg>
+);

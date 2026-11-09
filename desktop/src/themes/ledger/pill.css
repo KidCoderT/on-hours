@@ -1,0 +1,107 @@
+/* Ledger: today's line in the book, a strip of ruled paper. */
+.pill[data-theme="ledger"] {
+  --surface: #f4f1ea;  /* paper */
+  --ink: #1f1d1a;      /* iron-gall ink */
+  --muted: #7a746a;    /* pencil */
+  --edge: #d6d9d2;     /* ruled line */
+  --margin: #d9a097;   /* red margin rule */
+  --icon: #5e584f;
+  --hover: #ece7dc;
+  --pressed: #e3ddd0;
+  --red: #a8322a;
+  --green: #2f6b4a;
+  --entry: var(--ink);
+
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 48px;
+  padding: 0 6px 0 12px;
+  color: var(--ink);
+  /* Paper with one ruled line; the figure sits on it. */
+  background: linear-gradient(var(--edge), var(--edge)) no-repeat 0 33px / 100% 1px, var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  font-family: "Source Serif 4 Variable", Georgia, serif;
+  font-optical-sizing: auto;
+  font-variant-numeric: tabular-nums lining-nums;
+  user-select: none;
+  cursor: default;
+}
+@media (prefers-color-scheme: dark) {
+  .pill[data-theme="ledger"] {
+    --surface: #25282c;
+    --ink: #ece6d8;
+    --muted: #9c978c;
+    --edge: #3a3f43;
+    --margin: #7a4a45;
+    --icon: #b9b3a6;
+    --hover: #2e3236;
+    --pressed: #363a3f;
+    --red: #e3806f;
+    --green: #86be98;
+  }
+}
+.pill[data-theme="ledger"][data-entry="pencil"] { --entry: var(--muted); }
+.pill[data-theme="ledger"][data-entry="idle"] { --entry: var(--red); }
+.pill[data-theme="ledger"][data-entry="kept"] { --entry: var(--green); }
+
+/* A printer's diamond: filled while running, hollow while paused. */
+.pill[data-theme="ledger"] .mark { flex: none; width: 7px; height: 7px; border: 1px solid var(--entry); margin: 0 10px 0 1px; transform: rotate(45deg); }
+.pill[data-theme="ledger"][data-running="true"] .mark { background: var(--entry); }
+
+/* The red double margin rule, full height like the paper's. */
+.pill[data-theme="ledger"] .margin-rule { flex: none; align-self: stretch; width: 4px; border-inline: 1px solid var(--margin); margin-right: 12px; }
+
+.pill[data-theme="ledger"] .figure {
+  flex: none;
+  font-size: 23px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--entry);
+  white-space: nowrap;
+  padding-top: 1px; /* baseline onto the ruled line */
+}
+/* Kept: the accountant's double rule, top stroke laid on the ruled line. */
+.pill[data-theme="ledger"][data-entry="kept"] .figure {
+  text-decoration: underline double var(--green);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  text-decoration-skip-ink: none;
+}
+
+/* Margin note: how long the gap is, posted in red. */
+.pill[data-theme="ledger"] .note {
+  flex: none;
+  margin-left: 8px;
+  padding-top: 3px;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  white-space: nowrap;
+}
+
+.pill[data-theme="ledger"] button {
+  appearance: none;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pill[data-theme="ledger"] .toggle { margin-left: auto; }
+.pill[data-theme="ledger"] .book { color: var(--icon); }
+.pill[data-theme="ledger"] button:hover { background: var(--hover); }
+.pill[data-theme="ledger"] button:active { background: var(--pressed); }
+.pill[data-theme="ledger"] button:focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }
+.pill[data-theme="ledger"] button:disabled { opacity: 0.4; cursor: default; }
+.pill[data-theme="ledger"] button svg { width: 16px; height: 16px; display: block; }

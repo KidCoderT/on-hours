@@ -46,9 +46,11 @@ hormozi-timer/
 - [ ] Windows installer build
 - [x] Launch on startup
 - [x] History charts / heatmap
+- [ ] small taks widget
 
 ### Later
 
+- [ ] Fully customizable pill style programatically + themes
 - [ ] Global hotkey to start/stop
 - [ ] Idle detection (auto-pause when away)
 - [ ] CSV export

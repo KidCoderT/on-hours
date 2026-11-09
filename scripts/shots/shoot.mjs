@@ -1,7 +1,8 @@
 // Screenshot harness. From the repo root:  bun run --cwd desktop shots
 //
-// Starts Vite, freezes the browser clock, renders the pill in every fixture state (both
-// themes) and the history window, then composites each pill over three backgrounds.
+// Starts Vite, freezes the browser clock, and renders every pill theme in every fixture state,
+// with and without its settings button, in light and dark. Composites each pill over three
+// backgrounds and captures the settings window.
 // Output is deterministic: same code, same bytes. Writes to scripts/shots/out (gitignored).
 import { createRequire } from "node:module";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -17,9 +18,11 @@ const { createServer } = await import(pathToFileURL(require.resolve("vite")).hre
 
 // Wednesday 4 Nov 2026, 15:00 local. Every fixture is relative to this instant.
 const NOW = new Date(2026, 10, 4, 15, 0, 0);
+// Must list every theme in desktop/src/themes/registry.ts; the run fails if it doesn't.
+const PILL_THEMES = ["baseline", "instrument", "ledger"];
 const STATES = ["running-under", "running-near", "running-over", "paused-recent", "paused-long"];
-const THEMES = ["light", "dark"];
-const PILL = { width: 248, height: 48 }; // must match tauri.conf.json "main"
+const MODES = ["light", "dark"];
+const PILL_HEIGHT = 48;
 const HISTORY = { width: 460, height: 780 }; // must match tauri.conf.json "settings"
 const STAGE = { width: 360, height: 140 }; // pill composite canvas
 
@@ -45,18 +48,19 @@ const BACKGROUNDS = {
 rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 
-const server = await createServer({ root: desktop, configFile: join(desktop, "vite.config.ts"), logLevel: "error", server: { port: 1420, strictPort: true } });
+const server = await createServer({ root: desktop, configFile: join(desktop, "vite.config.ts"), logLevel: "error", server: { port: 0, strictPort: false } }); // any free port: never collides with `tauri dev`
 await server.listen();
-const base = "http://localhost:1420/";
+const base = server.resolvedUrls.local[0];
 const browser = await chromium.launch();
+const problems = [];
 
-async function openPage(colorScheme, viewport, url) {
+async function openPage(colorScheme, viewport, url, ready) {
   const ctx = await browser.newContext({ colorScheme, viewport, deviceScaleFactor: 1, reducedMotion: "no-preference" });
   const page = await ctx.newPage();
   await page.clock.install({ time: NOW });
   await page.clock.pauseAt(NOW);
   await page.goto(base + url);
-  await page.waitForSelector("#root > *");
+  await page.waitForSelector(ready);
   await page.evaluate(() => document.fonts.ready);
   return { ctx, page };
 }
@@ -69,46 +73,65 @@ const save = (name, buf) => {
   files.push(name);
 };
 
-// 1. Pill, every state, both themes, transparent background.
-const pills = {};
-for (const theme of THEMES) {
-  for (const state of STATES) {
-    const { ctx, page } = await openPage(theme, PILL, `?fixture=${state}`);
-    const png = await shot(page, { omitBackground: true });
-    pills[`${state}-${theme}`] = png;
-    save(`pill-${state}-${theme}.png`, png);
-    await ctx.close();
+/** Render one pill at the width the app would give its window, and check it fits. */
+async function pill(theme, state, mode, button) {
+  const { ctx, page } = await openPage(mode, { width: 400, height: PILL_HEIGHT }, `?fixture=${state}&theme=${theme}&button=${button ? 1 : 0}`, `.pill[data-theme="${theme}"]`);
+  const { width, themes } = await page.evaluate(() => ({ width: Number(document.documentElement.dataset.pillWidth), themes: document.documentElement.dataset.themes }));
+  if (themes !== PILL_THEMES.join(" ")) problems.push(`registry has [${themes}], harness has [${PILL_THEMES.join(" ")}]`);
+  await page.setViewportSize({ width, height: PILL_HEIGHT });
+  const overflow = await page.evaluate(() => {
+    const el = document.querySelector(".pill");
+    return el.scrollWidth > el.clientWidth || el.getBoundingClientRect().width !== window.innerWidth ? el.scrollWidth : 0;
+  });
+  if (overflow) problems.push(`${theme} ${state} button=${button}: content is ${overflow}px in a ${width}px window`);
+  const png = await shot(page, { omitBackground: true });
+  await ctx.close();
+  return { png, width };
+}
+
+// 1. Every theme × state × mode, with and without the settings button, transparent background.
+const pills = [];
+for (const theme of PILL_THEMES) {
+  for (const mode of MODES) {
+    for (const state of STATES) {
+      for (const button of [true, false]) {
+        const { png, width } = await pill(theme, state, mode, button);
+        const name = `pill-${theme}-${state}-${mode}${button ? "" : "-bare"}`;
+        save(`${name}.png`, png);
+        if (button) pills.push({ name, png, width });
+      }
+    }
   }
 }
 
-// 2. Each pill composited over each background.
+// 2. Each default pill (button on) composited over each background.
 {
-  const { ctx, page } = await openPage("light", STAGE, "?fixture=running-under");
+  const { ctx, page } = await openPage("light", STAGE, "?fixture=running-under", ".pill");
   for (const [bg, css] of Object.entries(BACKGROUNDS)) {
-    for (const [key, png] of Object.entries(pills)) {
+    for (const { name, png, width } of pills) {
       await page.setContent(
         `<style>html,body{margin:0;width:${STAGE.width}px;height:${STAGE.height}px;overflow:hidden}
          body{display:grid;place-items:center;${css}} img{display:block;image-rendering:pixelated}</style>
-         <img width="${PILL.width}" height="${PILL.height}" src="data:image/png;base64,${png.toString("base64")}">`,
+         <img width="${width}" height="${PILL_HEIGHT}" src="data:image/png;base64,${png.toString("base64")}">`,
       );
-      save(`over-${bg}-${key}.png`, await shot(page));
+      save(`over-${bg}-${name.replace(/^pill-/, "")}.png`, await shot(page));
     }
   }
   await ctx.close();
 }
 
-// 3. History window, both themes, both chart views.
-for (const theme of THEMES) {
+// 3. Settings window, both modes, both chart views.
+for (const mode of MODES) {
   for (const view of ["totals", "timeline"]) {
-    const { ctx, page } = await openPage(theme, HISTORY, `?window=settings&fixture=running-under`);
+    const { ctx, page } = await openPage(mode, HISTORY, `?window=settings&fixture=running-under`, "main.settings");
     await page.evaluate((v) => localStorage.setItem("history-view", v), view);
     await page.reload();
-    await page.waitForSelector("#root > *");
+    await page.waitForSelector("main.settings");
     await page.evaluate(() => document.fonts.ready);
     // The window is a fixed-height inner scroller, so grow the viewport to show the whole page.
     const height = await page.evaluate(() => document.querySelector("main").scrollHeight);
     await page.setViewportSize({ width: HISTORY.width, height });
-    save(`history-${view}-${theme}.png`, await shot(page));
+    save(`settings-${view}-${mode}.png`, await shot(page));
     await ctx.close();
   }
 }
@@ -118,14 +141,19 @@ await server.close();
 
 // Contact sheet for eyeballing everything at once.
 const img = (f) => `<figure><img src="${f}"><figcaption>${f}</figcaption></figure>`;
+const section = (title, prefix) => `<h2>${title}</h2><section>${files.filter((f) => f.startsWith(prefix)).map(img).join("")}</section>`;
 writeFileSync(
   join(out, "index.html"),
   `<!doctype html><meta charset="utf-8"><title>shots</title>
 <style>body{margin:24px;font:12px system-ui;background:#f4f4f4}section{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:32px}
 figure{margin:0}img{display:block;max-width:100%;background:
 repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/16px 16px}figcaption{color:#666;margin-top:4px}</style>
-<h2>pill</h2><section>${files.filter((f) => f.startsWith("pill-")).map(img).join("")}</section>
-<h2>over backgrounds</h2><section>${files.filter((f) => f.startsWith("over-")).map(img).join("")}</section>
-<h2>history</h2><section>${files.filter((f) => f.startsWith("history-")).map(img).join("")}</section>`,
+${PILL_THEMES.map((t) => section(`pill: ${t}`, `pill-${t}-`)).join("")}
+${section("over backgrounds", "over-")}
+${section("settings", "settings-")}`,
 );
 console.log(`${files.length} shots → ${out}`);
+if (problems.length) {
+  console.error(`\n${problems.length} problem(s):\n  ${[...new Set(problems)].join("\n  ")}`);
+  process.exit(1);
+}

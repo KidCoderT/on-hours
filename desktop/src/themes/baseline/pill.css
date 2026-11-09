@@ -1,0 +1,79 @@
+/* Baseline: the app's own tokens (styles/tokens.css), so it follows the settings window's look. */
+.pill[data-theme="baseline"] {
+  --dot: var(--red);
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 48px;
+  padding: 0 7px 0 18px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  user-select: none;
+  cursor: default;
+}
+.pill[data-theme="baseline"][data-running="true"] { --dot: var(--yellow); }
+.pill[data-theme="baseline"][data-done="true"] { --dot: var(--green); }
+
+.pill[data-theme="baseline"] .dot { margin-right: 12px; }
+.pill[data-theme="baseline"] .dot::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 1px solid var(--dot);
+  opacity: 0;
+}
+.pill[data-theme="baseline"][data-running="true"][data-done="false"] .dot::after {
+  animation: baseline-pulse 3s cubic-bezier(0.22, 0.61, 0.28, 1) infinite;
+}
+@keyframes baseline-pulse {
+  0% { opacity: 0.45; transform: scale(1); }
+  55%, 100% { opacity: 0; transform: scale(2.2); }
+}
+
+.pill[data-theme="baseline"] .time {
+  flex: 1;
+  min-width: 0;
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pill[data-theme="baseline"] .rule {
+  width: 1px;
+  height: 14px;
+  background: var(--edge);
+  margin-right: 5px;
+}
+
+.pill[data-theme="baseline"] button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.12s, transform 0.12s;
+}
+.pill[data-theme="baseline"] button:hover { background: var(--hover); }
+.pill[data-theme="baseline"] button:active { background: var(--pressed); transform: scale(0.96); }
+.pill[data-theme="baseline"] button:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 1px; }
+.pill[data-theme="baseline"] button:disabled { opacity: 0.4; cursor: default; }
+.pill[data-theme="baseline"] button svg { width: 16px; height: 16px; display: block; }
+.pill[data-theme="baseline"] .settings-btn { color: var(--icon); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pill[data-theme="baseline"] .dot::after { animation: none !important; }
+  .pill[data-theme="baseline"] button { transition: none; }
+}

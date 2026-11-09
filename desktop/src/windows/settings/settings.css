@@ -1,5 +1,5 @@
 ﻿.settings {
-  height: 100vh;
+  height: 100%;
   overflow-y: auto;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
@@ -11,18 +11,89 @@
   color: var(--ink);
   user-select: none;
 }
-.settings > * { flex-shrink: 0; }
-.settings header { margin-bottom: 28px; }
-.settings h1 { margin: 0; font-size: 26px; line-height: 32px; font-weight: 600; letter-spacing: -0.035em; }
-.settings header p { margin: 5px 0 0; font-size: 13px; line-height: 20px; color: var(--muted); }
-.settings h2 { margin: 0; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--ink); }
-.preferences { margin-bottom: 24px; }
-.preferences h2 { margin-bottom: 6px; }
-.row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 66px; font-size: 14px; }
-.row + .row { border-top: 1px solid var(--edge); }
-.row-copy { display: flex; flex-direction: column; gap: 4px; line-height: 20px; min-width: 0; }
-.row-copy small { color: var(--muted); font-size: 12px; line-height: 18px; }
-.row input, .row select, .field {
+
+.settings>* {
+  flex-shrink: 0;
+}
+
+.settings header {
+  margin-bottom: 20px;
+}
+
+.settings h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.settings h2 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* The week's record opens the window, so it needs no rule above it. */
+.settings>.history {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* Preferences follow the record under a heavy rule, like the back matter of an account book. */
+.settings h2.back-matter {
+  margin: 30px 0 8px;
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.preferences {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+/* Section labels: tracked small capitals. */
+.preferences h2 {
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  line-height: 16px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 66px;
+  font-size: 14px;
+}
+
+.row+.row {
+  border-top: 1px solid var(--edge);
+}
+
+.row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 20px;
+  min-width: 0;
+}
+
+.row-copy small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.row input,
+.row select,
+.field {
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--edge);
@@ -31,32 +102,121 @@
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
-.row input { padding: 0 10px; }
+
+.row input {
+  padding: 0 10px;
+}
+
 /* Own arrow instead of the browser's; mid-grey reads on both themes. */
 .row select {
   appearance: none;
   padding: 0 28px 0 10px;
   cursor: pointer;
-  background: var(--surface) no-repeat right 10px center / 12px
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%238a8a8a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background: var(--surface) no-repeat right 10px center / 12px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%238a8a8a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
 }
-.row select:focus-visible { outline: 2px solid var(--icon); outline-offset: 3px; }
-.row select option { background: var(--surface); color: var(--ink); }
-.row > input, .row > select { width: 112px; flex: none; }
-.field { display: flex; align-items: center; width: 112px; flex: none; padding-right: 12px; gap: 5px; color: var(--muted); }
-.field input { flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; height: 32px; text-align: right; }
-.field input::-webkit-inner-spin-button { appearance: none; margin: 0; }
-.field:has(input:focus-visible) { outline: 2px solid var(--icon); outline-offset: 3px; }
-.field input:focus-visible { outline: none; }
-.row > input:hover, .row > select:hover, .field:hover { border-color: var(--icon); }
 
-.segmented { display: flex; flex: none; padding: 3px; gap: 2px; background: var(--hover); border-radius: 9px; }
-.segmented label { position: relative; }
-.segmented span { display: block; padding: 0 10px; height: 30px; line-height: 30px; border-radius: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
-.segmented span:hover { color: var(--ink); }
-.segmented input:checked + span { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px #00000014; }
-.segmented input:focus-visible + span { outline: 2px solid var(--icon); outline-offset: 1px; }
-.section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.row select:focus-visible {
+  outline: 2px solid var(--icon);
+  outline-offset: 3px;
+}
+
+.row select option {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.row>input,
+.row>select {
+  width: 112px;
+  flex: none;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  width: 112px;
+  flex: none;
+  padding-right: 12px;
+  gap: 5px;
+  color: var(--muted);
+}
+
+.field input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  height: 32px;
+  text-align: right;
+}
+
+.field input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.field:has(input:focus-visible) {
+  outline: 2px solid var(--icon);
+  outline-offset: 3px;
+}
+
+.field input:focus-visible {
+  outline: none;
+}
+
+.row>input:hover,
+.row>select:hover,
+.field:hover {
+  border-color: var(--icon);
+}
+
+.segmented {
+  display: flex;
+  flex: none;
+  padding: 3px;
+  gap: 2px;
+  background: var(--hover);
+  border-radius: 9px;
+}
+
+.segmented label {
+  position: relative;
+}
+
+.segmented span {
+  display: block;
+  padding: 0 10px;
+  height: 30px;
+  line-height: 30px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.segmented span:hover {
+  color: var(--ink);
+}
+
+.segmented input:checked+span {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px #00000014;
+}
+
+.segmented input:focus-visible+span {
+  outline: 2px solid var(--icon);
+  outline-offset: 1px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .quit {
   align-self: flex-start;
   margin-top: 24px;
@@ -70,36 +230,95 @@
   line-height: 18px;
   cursor: pointer;
 }
-.quit:hover { background: var(--hover); color: var(--red); }
-.quit:active { background: var(--pressed); }
+
+.quit:hover {
+  background: var(--hover);
+  color: var(--red);
+}
+
+.quit:active {
+  background: var(--pressed);
+}
+
 @media (max-width: 400px) {
-  .settings { padding: 24px 20px 16px; }
-  .row { gap: 10px; }
-  .segmented span { padding-inline: 8px; }
+  .settings {
+    padding: 24px 20px 16px;
+  }
+
+  .row {
+    gap: 10px;
+  }
+
+  .segmented span {
+    padding-inline: 8px;
+  }
 }
 
 /* On/off switch (a styled checkbox): knob slides right and the track turns ink when on. */
-.row > input.switch {
+.row>input.switch {
   appearance: none;
   position: relative;
-  width: 36px; height: 20px; flex: none;
-  padding: 0; margin: 0;
-  border: 0; border-radius: 999px;
+  width: 36px;
+  height: 20px;
+  flex: none;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
   background: var(--edge);
   cursor: pointer;
   transition: background-color 160ms;
 }
-.row > input.switch::after {
+
+.row>input.switch::after {
   content: "";
-  position: absolute; top: 2px; left: 2px;
-  width: 16px; height: 16px; border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   background: var(--surface);
   box-shadow: 0 1px 2px #00000026;
   transition: transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.row > input.switch:checked { background: var(--ink); }
-.row > input.switch:checked::after { transform: translateX(16px); }
-.row > input.switch:hover { border: 0; }
-.row > input.switch:focus-visible { outline: 2px solid var(--icon); outline-offset: 3px; }
-@media (prefers-reduced-motion: reduce) { .row > input.switch, .row > input.switch::after { transition: none; } }
-.row > input.switch:disabled { opacity: 0.4; cursor: default; }
+
+.row>input.switch:checked {
+  background: var(--ink);
+}
+
+.row>input.switch:checked::after {
+  transform: translateX(16px);
+}
+
+.row>input.switch:hover {
+  border: 0;
+}
+
+.row>input.switch:focus-visible {
+  outline: 2px solid var(--icon);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .row>input.switch,
+  .row>input.switch::after {
+    transition: none;
+  }
+}
+
+.row>input.switch:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The settings page fills the whole webview, and the page colour sits behind it too, so no
+   strip of the transparent body can ever show below the scroller. The pill window keeps its
+   transparent body: it never renders .settings. */
+html:has(.settings),
+html:has(.settings) body,
+html:has(.settings) #root {
+  height: 100%;
+  background: var(--surface);
+}

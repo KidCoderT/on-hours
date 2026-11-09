@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
-import PillWindow from "./windows/pill/PillWindow";
+import PillWindow from "./pill/PillWindow";
 import SettingsWindow from "./windows/settings/SettingsWindow";
 import { applyTheme, getTheme } from "./lib/theme";
 import "./styles/tokens.css";

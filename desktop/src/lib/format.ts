@@ -19,3 +19,9 @@ export const fmtTime = (ms: number) => {
 };
 
 export const fmtDate =(d: Date, opts: Intl.DateTimeFormatOptions) => d.toLocaleDateString(undefined, opts);
+
+/** Short duration, hours:minutes rounded to the minute, sign dropped: 4:05. Used by pill themes. */
+export const fmtHMM = (ms: number) => {
+  const m = Math.round(Math.abs(ms) / 60_000);
+  return `${Math.floor(m / 60)}:${pad(m % 60)}`;
+};

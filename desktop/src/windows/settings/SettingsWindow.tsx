@@ -4,34 +4,88 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./settings.css"; // before the chart's CSS, matching the original cascade order
 import { useSettings } from "../../hooks/useSettings";
+import { LONG_PAUSE_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
 import HistoryChart from "../../components/history/HistoryChart";
+import StylePicker from "./StylePicker";
 
 // Jan 7 2024 was a Sunday, so index 0 = Sunday, in the user's language.
 const WEEKDAYS = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 7 + i).toLocaleDateString(undefined, { weekday: "long" }));
 
 type SettingsApi = ReturnType<typeof useSettings>;
 
-function DailyRhythm({ settings, loaded, save }: SettingsApi) {
-  const [goalText, setGoalText] = useState("4"); // what's typed, may be mid-edit like ""
-
-  // Fill the field once the saved goal arrives.
+/**
+ * A number field that may be mid-edit ("" or "1.") without saving. Shows the saved value once
+ * settings load; saves only values `parse` accepts.
+ */
+function useNumberField(saved: number, loaded: boolean, parse: (text: string) => number | null, save: (n: number) => void) {
+  const [text, setText] = useState(String(saved));
   useEffect(() => {
-    if (loaded) setGoalText(String(settings.dailyGoalMs / 3_600_000));
+    if (loaded) setText(String(saved));
   }, [loaded]);
-
-  const onGoal = (text: string) => {
-    setGoalText(text);
-    const h = Number(text);
-    if (text === "" || !(h > 0 && h <= 24)) return; // keep typing; only valid values are saved
-    const min = Math.round(h * 60);
-    save("daily_goal_min", String(min), { ...settings, dailyGoalMs: min * 60_000 });
+  const onChange = (next: string) => {
+    setText(next);
+    const n = parse(next);
+    if (n !== null) save(n);
   };
+  return [text, onChange] as const;
+}
+
+function PillPrefs({ settings, save }: SettingsApi) {
+  const onButton = (on: boolean) => save("pill_settings_button", on ? "1" : "0", { ...settings, pillSettingsButton: on });
+  const onRecordings = (show: boolean) =>
+    save("show_in_recordings", show ? "1" : "0", { ...settings, showInRecordings: show });
+
+  return (
+    <section className="preferences" aria-labelledby="pill-heading">
+      <h2 id="pill-heading">Pill</h2>
+      <div className="row">
+        <span className="row-copy"><span id="style-label">Style</span><small>How the pill looks.</small></span>
+        <StylePicker value={settings.pillTheme} labelledBy="style-label" onPick={(id) => save("pill_theme", id, { ...settings, pillTheme: id })} />
+      </div>
+      <div className="row">
+        <span className="row-copy"><span id="appearance-label">Appearance</span><small>System follows your device.</small></span>
+        <div className="segmented" role="radiogroup" aria-labelledby="appearance-label">
+          {(["system", "light", "dark"] as const).map((t) => (
+            <label key={t}>
+              <input type="radio" name="appearance" className="sr-only" defaultChecked={getTheme() === t} onChange={() => applyTheme(t)} />
+              <span>{t[0].toUpperCase() + t.slice(1)}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <label className="row">
+        <span className="row-copy"><span>Settings button</span><small>Right-click the pill always opens settings.</small></span>
+        <input type="checkbox" role="switch" className="switch" checked={settings.pillSettingsButton} onChange={(e) => onButton(e.target.checked)} />
+      </label>
+      <label className="row">
+        <span className="row-copy"><span>Show in screen recordings</span><small>Off hides the pill from recordings and screen shares.</small></span>
+        <input type="checkbox" role="switch" className="switch" checked={settings.showInRecordings} onChange={(e) => onRecordings(e.target.checked)} />
+      </label>
+    </section>
+  );
+}
+
+function DailyRhythm({ settings, loaded, save }: SettingsApi) {
+  const [goalText, onGoal] = useNumberField(
+    settings.dailyGoalMs / 3_600_000,
+    loaded,
+    (t) => (t !== "" && Number(t) > 0 && Number(t) <= 24 ? Number(t) : null),
+    (h) => {
+      const min = Math.round(h * 60);
+      save("daily_goal_min", String(min), { ...settings, dailyGoalMs: min * 60_000 });
+    },
+  );
+  const [pauseText, onPause] = useNumberField(
+    settings.longPauseMs / 60_000,
+    loaded,
+    (t) => (/^\d+$/.test(t) && Number(t) >= LONG_PAUSE_MIN.min && Number(t) <= LONG_PAUSE_MIN.max ? Number(t) : null),
+    (min) => save("long_pause_min", String(min), { ...settings, longPauseMs: min * 60_000 }),
+  );
 
   const onDayStart = (value: string) => {
     if (value) save("day_start", value, { ...settings, dayStart: value });
   };
-
   const onWeekStart = (value: string) => save("week_start", value, { ...settings, weekStart: Number(value) });
 
   return (
@@ -40,10 +94,7 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
       <label className="row">
         <span className="row-copy"><span>Daily goal</span><small>Your minimum focused time.</small></span>
         <span className="field">
-          <input
-            aria-label="Daily goal in hours" type="number" min={0.5} max={24} step={0.5}
-            value={goalText} onChange={(e) => onGoal(e.target.value)}
-          />
+          <input aria-label="Daily goal in hours" type="number" min={0.5} max={24} step={0.5} value={goalText} onChange={(e) => onGoal(e.target.value)} />
           <span aria-hidden="true">h</span>
         </span>
       </label>
@@ -57,34 +108,15 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
           {WEEKDAYS.map((name, i) => <option key={i} value={i}>{name}</option>)}
         </select>
       </label>
-    </section>
-  );
-}
-
-function Appearance({ settings, save }: SettingsApi) {
-  const onRecordings = (show: boolean) =>
-    save("show_in_recordings", show ? "1" : "0", { ...settings, showInRecordings: show });
-
-  return (
-    <section className="preferences" aria-labelledby="appearance-heading">
-      <h2 id="appearance-heading">Appearance</h2>
-      <div className="row">
-        <span className="row-copy"><span id="theme-label">Theme</span><small>System follows your device.</small></span>
-        <div className="segmented" role="radiogroup" aria-labelledby="theme-label">
-          {(["system", "light", "dark"] as const).map((t) => (
-            <label key={t}>
-              <input type="radio" name="theme" className="sr-only" defaultChecked={getTheme() === t} onChange={() => applyTheme(t)} />
-              <span>{t[0].toUpperCase() + t.slice(1)}</span>
-            </label>
-          ))}
-        </div>
-      </div>
       <label className="row">
-        <span className="row-copy"><span>Show timer in screen recordings</span><small>Off hides the pill from recordings and screen shares.</small></span>
-        <input
-          type="checkbox" role="switch" className="switch"
-          checked={settings.showInRecordings} onChange={(e) => onRecordings(e.target.checked)}
-        />
+        <span className="row-copy"><span>Long pause after</span><small>When Instrument and Ledger turn red.</small></span>
+        <span className="field">
+          <input
+            aria-label="Long pause after, in minutes" type="number" min={LONG_PAUSE_MIN.min} max={LONG_PAUSE_MIN.max} step={5}
+            value={pauseText} onChange={(e) => onPause(e.target.value)}
+          />
+          <span aria-hidden="true">min</span>
+        </span>
       </label>
     </section>
   );
@@ -133,6 +165,7 @@ function System() {
 
 function SettingsWindow() {
   const settingsApi = useSettings();
+  const { settings } = settingsApi;
 
   // Closing the window only hides it, so the pill can reopen it.
   useEffect(() => {
@@ -147,17 +180,19 @@ function SettingsWindow() {
     };
   }, []);
 
+  // The record first, preferences after: you open this window to see how the week went.
   return (
     <main className="settings">
       <header>
-        <h1>Settings</h1>
-        <p>Hormozi Timer</p>
+        <h1>Hormozi Timer</h1>
       </header>
 
+      <HistoryChart goalMs={settings.dailyGoalMs} dayStart={settings.dayStart} weekStart={settings.weekStart} />
+
+      <h2 className="back-matter">Preferences</h2>
+      <PillPrefs {...settingsApi} />
       <DailyRhythm {...settingsApi} />
-      <Appearance {...settingsApi} />
       <System />
-      <HistoryChart goalMs={settingsApi.settings.dailyGoalMs} dayStart={settingsApi.settings.dayStart} weekStart={settingsApi.settings.weekStart} />
 
       <button type="button" className="quit" onClick={() => invoke("quit")}>
         Quit Hormozi Timer

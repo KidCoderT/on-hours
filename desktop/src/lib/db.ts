@@ -1,15 +1,11 @@
 import Database from "@tauri-apps/plugin-sql";
+import { parseSettings, type SettingKey, type Settings } from "./settings";
 
 // The DB is opened + migrated by Rust at startup (`preload` in tauri.conf.json),
 // so every window shares that one connection. File: %APPDATA%\com.tejas.hormozi-timer\hormozi.db
 export const db = Database.get("sqlite:hormozi.db");
 
 export type Session = { id: number; start_ms: number; end_ms: number; open: number };
-/** weekStart: 0 = Sunday … 6 = Saturday. showInRecordings: false hides the pill from screen capture. */
-export type Settings = { dailyGoalMs: number; dayStart: string; weekStart: number; showInRecordings: boolean };
-export type SettingKey = "daily_goal_min" | "day_start" | "week_start" | "show_in_recordings";
-
-export const DEFAULT_SETTINGS: Settings = { dailyGoalMs: 4 * 3_600_000, dayStart: "00:00", weekStart: 1, showInRecordings: true };
 
 /* ---------- sessions ---------- */
 
@@ -54,14 +50,12 @@ export async function recoverOpenSession(staleAfterMs = 2 * 60_000): Promise<Ses
 
 export async function getSettings(): Promise<Settings> {
   const rows = await db.select<{ key: string; value: string }[]>("SELECT key, value FROM settings");
-  const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-  return {
-    dailyGoalMs: Number(map.daily_goal_min) * 60_000,
-    dayStart: map.day_start,
-    weekStart: Number(map.week_start ?? 1),
-    showInRecordings: map.show_in_recordings !== "0",
-  };
+  return parseSettings(Object.fromEntries(rows.map((r) => [r.key, r.value])));
 }
 
+/** Upsert: a row missing from an older or hand-edited database is created, not silently skipped. */
 export const setSetting = (key: SettingKey, value: string) =>
-  db.execute("UPDATE settings SET value = $1 WHERE key = $2", [value, key]);
+  db.execute(
+    "INSERT INTO settings (key, value) VALUES ($1, $2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    [key, value],
+  );

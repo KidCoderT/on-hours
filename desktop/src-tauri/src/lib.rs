@@ -25,6 +25,12 @@ fn migrations() -> Vec<tauri_plugin_sql::Migration> {
             sql: include_str!("../migrations/0003_show_in_recordings.sql"),
             kind: tauri_plugin_sql::MigrationKind::Up,
         },
+        tauri_plugin_sql::Migration {
+            version: 4,
+            description: "pill theme",
+            sql: include_str!("../migrations/0004_pill_theme.sql"),
+            kind: tauri_plugin_sql::MigrationKind::Up,
+        },
     ]
 }
 

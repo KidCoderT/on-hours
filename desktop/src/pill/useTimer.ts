@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
-import { heartbeat, lastSessionEnd, pauseSession, recoverOpenSession, sessionsBetween, startSession, type Settings } from "../../lib/db";
-import { fixture } from "../../lib/fixture";
-import { dayRange, trimmedTotal, workDayOf } from "../../lib/time";
+import { heartbeat, lastSessionEnd, pauseSession, recoverOpenSession, sessionsBetween, startSession } from "../lib/db";
+import { fixture } from "../lib/fixture";
+import type { Settings } from "../lib/settings";
+import { dayRange, holdMs, trimmedTotal, workDayOf } from "../lib/time";
 
 const HEARTBEAT_MS = 30_000;
 
@@ -15,8 +16,9 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const [recovered, setRecovered] = useState(false);
   const [baseMs, setBaseMs] = useState(0); // today's finished sessions
   const [openStart, setOpenStart] = useState<number | null>(null); // running session's start
-  const [pausedSince, setPausedSince] = useState<number | null>(null); // last pause, for "paused for how long"
+  const [pausedSince, setPausedSince] = useState<number | null>(null); // end of the last session
   const [now, setNow] = useState(Date.now());
+  const [launchedAt] = useState(Date.now);
   const busy = useRef(false); // ignore double-clicks while a DB write is in flight
 
   // Play stays disabled until we know the real goal/day-start and whether a session is open.
@@ -24,25 +26,29 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const today = dayRange(workDayOf(new Date(now), settings.dayStart), settings.dayStart);
   const running = openStart !== null;
   // A session that began before today's start only counts from the day boundary.
-  const elapsed = baseMs + (running ? Math.max(0, now - Math.max(openStart, today.from)) : 0);
+  const runningMs = running ? Math.max(0, now - Math.max(openStart, today.from)) : 0;
+  const elapsed = baseMs + runningMs;
   const done = elapsed >= settings.dailyGoalMs;
-  const pausedMs = running || pausedSince === null ? 0 : Math.max(0, now - pausedSince);
+  const pausedMs = running ? 0 : holdMs(now, pausedSince, today.from, launchedAt);
 
-  // On launch: resume a session still running from before a reload/restart.
+  // On launch: resume a session still running from before a reload/restart,
+  // otherwise remember when the last one ended so hold time survives the restart.
   useEffect(() => {
     if (!isTauri()) return; // design preview in a plain browser: static pill
-    recoverOpenSession()
-      .then(async (open) => {
-        setOpenStart(open?.start_ms ?? null);
-        if (!open) setPausedSince(await lastSessionEnd());
-        setRecovered(true);
-      })
-      .catch((e) => console.error("could not load timer", e));
+    (async () => {
+      const open = await recoverOpenSession();
+      setOpenStart(open?.start_ms ?? null);
+      if (!open) setPausedSince(await lastSessionEnd());
+      setRecovered(true);
+    })().catch((e) => console.error("could not load timer", e));
   }, []);
 
   // (Re)load today's finished total on launch and whenever the work-day changes.
   useEffect(() => {
-    if (ready) finishedTotal(today.from, today.to).then(setBaseMs);
+    if (!ready) return;
+    finishedTotal(today.from, today.to)
+      .then(setBaseMs)
+      .catch((e) => console.error("could not load today's total", e));
   }, [ready, today.from, today.to]);
 
   // Clock tick. Runs while paused too, so the display resets at the day boundary.
@@ -54,26 +60,35 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   // While running, keep the session's end time fresh so a crash loses at most 30s.
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => heartbeat(), HEARTBEAT_MS);
+    const id = setInterval(() => heartbeat().catch((e) => console.error("heartbeat failed", e)), HEARTBEAT_MS);
     return () => clearInterval(id);
   }, [running]);
 
-  // Write to the DB first, then update the screen, so the display never shows unsaved time.
+  /**
+   * Write to the DB first, then update the screen, so the display never shows unsaved time.
+   * Once the write succeeds the screen follows it, even if the total refresh after it fails:
+   * showing "running" for a closed session would log nothing from then on.
+   */
   const toggle = async () => {
-    if (busy.current) return;
+    if (busy.current || !ready) return;
     busy.current = true;
     const t = Date.now();
     try {
       if (running) {
         await pauseSession(t);
-        setBaseMs(await finishedTotal(today.from, today.to));
+        setBaseMs((b) => b + Math.max(0, t - Math.max(openStart, today.from)));
         setOpenStart(null);
         setPausedSince(t);
+        setNow(t);
+        // Re-read from the DB to correct any drift; the local sum above stands if this fails.
+        finishedTotal(today.from, today.to)
+          .then(setBaseMs)
+          .catch((e) => console.error("could not refresh today's total", e));
       } else {
         await startSession(t);
         setOpenStart(t);
+        setNow(t);
       }
-      setNow(t);
     } catch (e) {
       console.error("could not save session", e);
     } finally {

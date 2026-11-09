@@ -1,6 +1,7 @@
 // Fixed fake state for screenshots (scripts/shots). Only active in a plain browser with
 // ?fixture=<state>; the Tauri app never reads this. The harness freezes Date.now, so
 // everything here is relative to that frozen "now" and renders identically every run.
+import type { Settings } from "./settings";
 import { HOUR } from "./time";
 
 const MIN = 60_000;
@@ -15,9 +16,18 @@ export const PILL_STATES = {
 } as const;
 export type PillState = keyof typeof PILL_STATES;
 
-const param = new URLSearchParams(location.search).get("fixture");
+const params = new URLSearchParams(location.search);
+const param = params.get("fixture");
 export const fixture: (typeof PILL_STATES)[PillState] | null =
   param && param in PILL_STATES ? PILL_STATES[param as PillState] : param ? PILL_STATES["running-under"] : null;
+
+/** Settings the harness pins through the URL: ?theme=<id>&button=0|1. Empty outside fixture mode. */
+export const fixtureSettings: Partial<Settings> = fixture
+  ? {
+      ...(params.get("theme") && { pillTheme: params.get("theme")! }),
+      ...(params.get("button") && { pillSettingsButton: params.get("button") !== "0" }),
+    }
+  : {};
 
 /**
  * Two weeks of sessions ending at the frozen now (a Wednesday afternoon in the harness).

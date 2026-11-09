@@ -1,0 +1,107 @@
+/* Instrument: a readout. Glass, seven-segment digits, keys. */
+@font-face {
+  font-family: "Instrument DSEG7";
+  src: url("./fonts/DSEG7Classic-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: block;
+}
+@font-face { font-family: "Instrument Mono"; src: url("./fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: block; }
+@font-face { font-family: "Instrument Mono"; src: url("./fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: block; }
+@font-face { font-family: "Instrument Mono"; src: url("./fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: block; }
+
+/* Light = reflective LCD: grey-green glass, black segments. */
+.pill[data-theme="instrument"] {
+  --surface: #c8ccbc;
+  --ink: #1c1e17;
+  --muted: #4a4e42;
+  --ghost: #babead;
+  --hover: #b9bdac;
+  --pressed: #aeb2a0;
+  --amber: #8a5200;
+  --green: #0f6b34;
+  --dim: #6a6e60;
+  --red: #b4231a;
+  --lit: var(--amber);
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 48px;
+  padding: 0 7px 0 16px;
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 4px;
+  font-family: "Instrument Mono", ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  cursor: default;
+}
+/* Dark = lit readout: near-black glass, emitting segments. */
+@media (prefers-color-scheme: dark) {
+  .pill[data-theme="instrument"] {
+    --surface: #0e0e0c;
+    --ink: #d9d6cc;
+    --muted: #8a877d;
+    --ghost: #1c1c19;
+    --hover: #1f1f1c;
+    --pressed: #2a2a26;
+    --amber: #ffb020;
+    --green: #5be38c;
+    --dim: #6e6b62;
+    --red: #ff4a3d;
+  }
+}
+.pill[data-theme="instrument"][data-mode="met"] { --lit: var(--green); }
+.pill[data-theme="instrument"][data-mode="hold"] { --lit: var(--dim); }
+.pill[data-theme="instrument"][data-mode="idle"] { --lit: var(--red); }
+
+/* Seven-segment readout: unlit "8"s sit behind the lit digits, like real glass. */
+.pill[data-theme="instrument"] .seg { position: relative; display: inline-block; font-family: "Instrument DSEG7", monospace; font-weight: 700; line-height: 1; white-space: nowrap; font-variant-numeric: normal; }
+.pill[data-theme="instrument"] .seg-ghost { color: var(--ghost); }
+.pill[data-theme="instrument"] .seg-lit { position: absolute; inset: 0; text-align: right; color: var(--lit); }
+
+.pill[data-theme="instrument"] .readout { display: flex; flex-direction: column; gap: 4px; }
+.pill[data-theme="instrument"] .pill-digits { font-size: 24px; }
+
+/* Progress to the goal in tenths. A gauge, not a measurement: the digits are exact. */
+.pill[data-theme="instrument"] .gauge { display: flex; gap: 2px; height: 2px; }
+.pill[data-theme="instrument"] .gauge i { flex: 1; background: var(--ghost); }
+.pill[data-theme="instrument"] .gauge i[data-on="true"] { background: var(--lit); }
+
+/* LCD annunciator: mode word over the number that matters next. */
+.pill[data-theme="instrument"] .annunciator { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 10px; line-height: 11px; letter-spacing: 0.08em; }
+.pill[data-theme="instrument"] .annunciator .word { color: var(--lit); font-weight: 700; text-transform: uppercase; }
+.pill[data-theme="instrument"] .annunciator .sub { color: var(--muted); font-weight: 500; }
+
+/* Alarm: the colons blink at 1 Hz. The first frame is lit, so stills always show the colon. */
+.pill[data-theme="instrument"][data-mode="idle"] .colon { animation: instrument-blink 1s steps(1, end) infinite; }
+@keyframes instrument-blink { 50% { opacity: 0; } }
+
+/* Keys: play, then the optional settings key, flush like a keypad. */
+.pill[data-theme="instrument"] .keys { display: flex; flex: none; }
+.pill[data-theme="instrument"] button {
+  appearance: none;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pill[data-theme="instrument"] .settings-key { color: var(--muted); }
+.pill[data-theme="instrument"] button:hover { background: var(--hover); }
+.pill[data-theme="instrument"] button:active { background: var(--pressed); }
+.pill[data-theme="instrument"] button:focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }
+.pill[data-theme="instrument"] button:disabled { opacity: 0.4; cursor: default; }
+.pill[data-theme="instrument"] button svg { width: 16px; height: 16px; display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pill[data-theme="instrument"][data-mode="idle"] .colon { animation: none; }
+}

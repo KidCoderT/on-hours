@@ -42,6 +42,9 @@ function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
   };
 
   const range = `${fmtDate(first, { month: "short", day: "numeric" })} – ${fmtDate(addDays(first, 6), { month: "short", day: "numeric" })}`;
+  // The week's verdict, from the Ledger: only days that are over count. Today is still open.
+  const closed = days.filter((d) => !d.future && !d.today);
+  const kept = closed.filter((d) => d.ms >= goalMs).length;
 
   return (
     <section className="history" aria-labelledby="history-heading">
@@ -98,6 +101,11 @@ function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
           <span className="vs"> vs {prevName}</span>
         </span>
       </div>
+      {closed.length > 0 && (
+        <p className="memo">
+          {kept} of {closed.length} {closed.length === 1 ? "day" : "days"} kept · goal {fmtHM(goalMs)} a day
+        </p>
+      )}
     </section>
   );
 }

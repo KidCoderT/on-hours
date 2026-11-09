@@ -16,7 +16,7 @@ function Pill({ m }: { m: PillModel }) {
       <span className="mark" aria-hidden="true" />
       <span className="margin-rule" aria-hidden="true" />
       <span className="figure" aria-hidden="true">{fmtClock(m.elapsedMs)}</span>
-      {entry === "idle" && <span className="note" aria-hidden="true">idle {fmtHMM(m.pausedMs)}</span>}
+      {(entry === "pencil" || entry === "idle") && <span className="note" aria-hidden="true">{entry === "idle" ? "idle" : "held"} {fmtHMM(m.pausedMs)}</span>}
       <button type="button" className="toggle" onClick={m.toggle} disabled={!m.ready} aria-label={m.running ? "Pause" : "Start"}>
         {m.running ? <PauseIcon /> : <PlayIcon />}
       </button>

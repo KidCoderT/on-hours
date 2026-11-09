@@ -170,6 +170,32 @@ What a user theme would be, when we build it: **data only, never code.**
 - Reading the folder needs either `tauri-plugin-fs` or one small Rust command. Defer the choice.
 - Unknown `api` version: skip that theme, fall back to its `extends` built-in, and say so in settings.
 
+#### Future plan: user CSS file (not scheduled)
+
+Status: not built. Today a new theme needs the source code (a folder in `themes/`, an entry in
+`registry.ts`, an id in `scripts/shots/shoot.mjs`) and a rebuild. The installed app takes no user files.
+
+The simpler first step, before the JSON format above: one optional CSS file the user edits.
+
+1. **File.** `%APPDATA%/com.tejas.hormozi-timer/user-theme.css`. Read once at startup by one small
+   Rust command (no new plugin), and again when settings is focused.
+2. **Inject.** Both windows add its text as a `<style>` tag after the built-in CSS and set
+   `data-user-theme` on the pill shell. It overrides through the seam already reserved in
+   `themes/types.ts` (rule 3): `.pill-shell[data-user-theme] .pill[data-theme="ledger"] { ... }`
+   for the pill, and `:root[data-user-theme]` for the settings window palette.
+3. **Switch.** A "Use my CSS" switch in settings (key `user_theme_on`, default off), plus an
+   "Open file" button. A broken or missing file is ignored and the built-in theme shows.
+4. **Docs.** A short `design/USER_THEMES.md` listing the safe hooks: the CSS variables and the
+   class names each theme promises to keep.
+
+Limits, by design:
+- **CSS only, never JavaScript.** A shared theme file must not be able to run code on the machine.
+  Block `url()` to remote hosts so a theme can't phone home; local fonts and data URLs are fine.
+- **Restyle, not restructure.** CSS changes colour, font, size, spacing and borders. It cannot
+  change what the pill shows. New layouts stay code themes added through the source route.
+- **Width is the theme's.** The window is sized from `registry.ts`, so CSS that makes the pill
+  wider gets clipped. Allow a `--user-width` variable later if people need it.
+
 ### 2.7 Keeping themes honest as they change
 
 - **The screenshot harness loops over the registry**: every theme × every state × with/without button

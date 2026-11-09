@@ -31,7 +31,7 @@ export const THEMES = [
     name: "Ledger",
     blurb: "Today's line in the book. Ink, pencil, red ink.",
     api: 1,
-    width: { withButton: 248, bare: 216 },
+    width: { withButton: 252, bare: 220 },
     Pill: LedgerPill,
   },
 ] as const satisfies readonly PillTheme[];

@@ -93,7 +93,7 @@
   transition: color 0.2s ease-out;
 }
 
-/* Play/pause is the one control, so it alone sits on a fill. Settings is a bare glyph. */
+/* Both buttons are bare glyphs; the fill appears only on hover. Play/pause is in full ink. */
 .pill[data-theme="baseline"] button {
   appearance: none;
   border: 0;
@@ -109,7 +109,7 @@
   cursor: pointer;
   transition: background-color 0.15s ease-out, transform 0.15s ease-out;
 }
-.pill[data-theme="baseline"] .toggle { background: var(--fill); color: var(--label); }
+.pill[data-theme="baseline"] .toggle { color: var(--label); }
 .pill[data-theme="baseline"] .settings-btn { margin-left: 2px; }
 .pill[data-theme="baseline"] button:hover { background: var(--fill-hover); }
 .pill[data-theme="baseline"] button:active { background: var(--fill-pressed); transform: scale(0.94); }

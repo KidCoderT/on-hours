@@ -65,8 +65,8 @@ Traffic lights, same in both modes (fill / rim):
 ### Spacing, radii, density
 
 - **Pill:** 48 tall, full capsule. Padding 16 left, 9 right. Light 12, gap 11 to the digits.
-- **Controls:** 30 round; only play/pause sits on a fill, the settings glyph is bare.
-- **Density:** sparse. A light, a number, one filled control.
+- **Controls:** 30 round, bare glyphs; the fill shows only on hover.
+- **Density:** sparse. A light, a number, two glyphs.
 - **Edges, not shadows.** A 1px border and a 1px inner highlight. No drop shadow, no gradient, no blur.
 
 ### Motion

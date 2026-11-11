@@ -1,0 +1,48 @@
+# Builds the Windows installers and attaches them to a draft GitHub Release.
+# Run it by pushing a version tag (git tag v0.1.0 && git push origin v0.1.0) or from the Actions tab.
+# The tag must match "version" in tauri.conf.json, Cargo.toml and package.json.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write # create the release and upload the installers
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - name: Install dependencies
+        working-directory: desktop
+        run: bun install --frozen-lockfile
+
+      - name: Test
+        working-directory: desktop
+        run: bun test
+
+      # Produces the NSIS setup (.exe) and the .msi, then uploads both to the release.
+      # Draft: nothing is public until you press "Publish release" on GitHub.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          tauriScript: bun tauri
+          tagName: v__VERSION__
+          releaseName: On Hours v__VERSION__
+          releaseBody: Download the setup .exe below and run it. Windows may warn that the app is unrecognised; choose "More info" → "Run anyway".
+          releaseDraft: true
+          prerelease: false

@@ -45,6 +45,15 @@
       "preload": [
         "sqlite:on-hours.db"
       ]
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRDNTk5NzQ1NTU2MjVFMUMKUldRY1htSlZSWmRaVEMvQ1owM1ZOWGI2YmlkMjBvK2xUN0ZtTTI0VmNlMVQrb1NmejBmQXBBUG0K",
+      "endpoints": [
+        "https://github.com/KidCoderT/on-hours/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   },
   "bundle": {
@@ -56,6 +65,7 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
   }
 }

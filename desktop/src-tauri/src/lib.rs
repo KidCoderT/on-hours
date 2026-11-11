@@ -113,7 +113,9 @@ pub fn run() {
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(tauri_plugin_window_state::StateFlags::POSITION)
                 .build(),
-        );
+        )
+        // Updates from GitHub Releases, signed with the key in tauri.conf.json. See pill/useAutoUpdate.ts.
+        .plugin(tauri_plugin_updater::Builder::new().build());
 
     builder
         // The DB is opened and migrated at startup (see `plugins.sql.preload` in tauri.conf.json).

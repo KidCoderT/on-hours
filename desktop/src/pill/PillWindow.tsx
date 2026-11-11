@@ -7,6 +7,7 @@ import { fmtClock, fmtHM } from "../lib/format";
 import { fixture } from "../lib/fixture";
 import { pillWidth, THEMES, themeById } from "../themes/registry";
 import type { PillModel } from "../themes/types";
+import { useAutoUpdate } from "./useAutoUpdate";
 import { useFitWindow } from "./useFitWindow";
 import { useTimer } from "./useTimer";
 
@@ -38,6 +39,7 @@ function PillWindow() {
   const settled = loaded || !isTauri();
   useWindowPosition();
   useFitWindow(width, loaded);
+  useAutoUpdate(running);
 
   // Screenshot harness only: tell it the window width and the registered themes, so it can
   // size the viewport and fail when a theme overflows its declared width.

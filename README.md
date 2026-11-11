@@ -75,8 +75,8 @@ App data lives in `%APPDATA%\com.tejas.on-hours`.
 
 ## Roadmap
 
-- [ ] Windows installer and GitHub Releases
-- [ ] Automatic updates
+- [x] Windows installer and GitHub Releases
+- [x] Automatic updates
 - [ ] Global hotkey to start/stop
 - [ ] Landing page, online leaderboard, and a count of how many people are working live
 - [ ] User CSS file for custom pill looks (plan in `design/PLAN_THEMES.md`)

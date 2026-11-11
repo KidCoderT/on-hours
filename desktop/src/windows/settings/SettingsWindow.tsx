@@ -192,7 +192,7 @@ function SettingsWindow() {
   return (
     <main className="settings">
       <header>
-        <h1>Hormozi Timer</h1>
+        <h1>On Hours</h1>
       </header>
 
       <HistoryChart goalMs={settings.dailyGoalMs} dayStart={settings.dayStart} weekStart={settings.weekStart} />
@@ -203,7 +203,7 @@ function SettingsWindow() {
       <System />
 
       <button type="button" className="quit" onClick={() => invoke("quit")}>
-        Quit Hormozi Timer
+        Quit On Hours
       </button>
     </main>
   );

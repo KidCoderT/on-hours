@@ -2,8 +2,8 @@ import Database from "@tauri-apps/plugin-sql";
 import { parseSettings, type SettingKey, type Settings } from "./settings";
 
 // The DB is opened + migrated by Rust at startup (`preload` in tauri.conf.json),
-// so every window shares that one connection. File: %APPDATA%\com.tejas.hormozi-timer\hormozi.db
-export const db = Database.get("sqlite:hormozi.db");
+// so every window shares that one connection. File: %APPDATA%/com.tejas.on-hours/on-hours.db
+export const db = Database.get("sqlite:on-hours.db");
 
 export type Session = { id: number; start_ms: number; end_ms: number; open: number };
 

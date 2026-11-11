@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Hormozi Timer",
+  "productName": "On Hours",
   "version": "0.1.0",
-  "identifier": "com.tejas.hormozi-timer",
+  "identifier": "com.tejas.on-hours",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Hormozi Timer",
+        "title": "On Hours",
         "width": 248,
         "height": 48,
         "resizable": false,
@@ -42,7 +42,9 @@
   },
   "plugins": {
     "sql": {
-      "preload": ["sqlite:hormozi.db"]
+      "preload": [
+        "sqlite:on-hours.db"
+      ]
     }
   },
   "bundle": {

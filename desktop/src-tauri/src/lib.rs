@@ -30,13 +30,13 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
             &MenuItem::with_id(app, "pill", "Show pill", true, None::<&str>)?,
             &MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, "quit", "Quit Hormozi Timer", true, None::<&str>)?,
+            &MenuItem::with_id(app, "quit", "Quit On Hours", true, None::<&str>)?,
         ],
     )?;
 
     TrayIconBuilder::with_id("main")
         .icon(app.default_window_icon().expect("bundle icon").clone())
-        .tooltip("Hormozi Timer")
+        .tooltip("On Hours")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, e| match e.id().as_ref() {
@@ -119,7 +119,7 @@ pub fn run() {
         // The DB is opened and migrated at startup (see `plugins.sql.preload` in tauri.conf.json).
         .plugin(
             tauri_plugin_sql::Builder::new()
-                .add_migrations("sqlite:hormozi.db", migrations())
+                .add_migrations("sqlite:on-hours.db", migrations())
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())

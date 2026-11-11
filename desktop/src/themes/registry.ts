@@ -1,7 +1,8 @@
 import BaselinePill from "./baseline/Pill";
 import InstrumentPill from "./instrument/Pill";
 import LedgerPill from "./ledger/Pill";
-// App palettes: the settings window takes the active theme's colours and font (Baseline is the default).
+// App looks: the settings window takes the active theme's colours, font and control styling.
+// An app.css restyles the shared markup; it never adds or moves any.
 import "./instrument/app.css";
 import "./ledger/app.css";
 import type { PillTheme } from "./types";
@@ -13,9 +14,9 @@ export const THEMES = [
   {
     id: "baseline",
     name: "Baseline",
-    blurb: "The original. A status dot and a plain number.",
+    blurb: "A Mac panel. A traffic light and a plain number.",
     api: 1,
-    width: { withButton: 248, bare: 214 },
+    width: { withButton: 232, bare: 200 },
     Pill: BaselinePill,
   },
   {

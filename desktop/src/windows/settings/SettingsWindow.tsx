@@ -110,7 +110,7 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
         </select>
       </label>
       <label className="row">
-        <span className="row-copy"><span>Long pause after</span><small>When Instrument and Ledger turn red.</small></span>
+        <span className="row-copy"><span>Long pause after</span><small>When a paused pill turns red.</small></span>
         <span className="field">
           <input
             aria-label="Long pause after, in minutes" type="number" min={LONG_PAUSE_MIN.min} max={LONG_PAUSE_MIN.max} step={5}

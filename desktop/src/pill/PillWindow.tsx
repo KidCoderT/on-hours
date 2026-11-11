@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Window, getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
 import { useSettings } from "../hooks/useSettings";
@@ -69,6 +69,19 @@ function PillWindow() {
     toggle: () => void toggle(),
     openSettings: () => void openSettings().catch((e) => console.error("could not open settings", e)),
   };
+
+  // The tray's "Start / Pause". A ref, so the listener always calls the current toggle.
+  const latest = useRef(m);
+  latest.current = m;
+  useEffect(() => {
+    if (!isTauri()) return;
+    const unlisten = getCurrentWindow().listen("tray-toggle", () => {
+      if (latest.current.ready) latest.current.toggle();
+    });
+    return () => {
+      unlisten.then((off) => off());
+    };
+  }, []);
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();

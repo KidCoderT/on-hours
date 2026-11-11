@@ -1,7 +1,68 @@
-// ponytail: quit lives here until the tray icon exists (the pill has no close button).
+// Settings' Quit button. The tray menu quits directly.
 #[tauri::command]
 fn quit(app: tauri::AppHandle) {
     app.exit(0);
+}
+
+#[cfg(desktop)]
+fn show_settings(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(w) = app.get_webview_window("settings") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+    }
+}
+
+/// The pill has no taskbar entry and no close button, so the tray is the way back to it.
+/// Left-click opens settings; right-click shows the menu.
+#[cfg(desktop)]
+fn tray(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    use tauri::{Emitter, Manager};
+
+    // ponytail: one "Start / Pause" item, not a label that tracks the timer. Sync it if people ask.
+    let menu = Menu::with_items(
+        app,
+        &[
+            &MenuItem::with_id(app, "toggle", "Start / Pause", true, None::<&str>)?,
+            &MenuItem::with_id(app, "pill", "Show pill", true, None::<&str>)?,
+            &MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItem::with_id(app, "quit", "Quit Hormozi Timer", true, None::<&str>)?,
+        ],
+    )?;
+
+    TrayIconBuilder::with_id("main")
+        .icon(app.default_window_icon().expect("bundle icon").clone())
+        .tooltip("Hormozi Timer")
+        .menu(&menu)
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, e| match e.id().as_ref() {
+            // The timer lives in the pill's webview, so ask it to toggle.
+            "toggle" => {
+                let _ = app.emit_to("main", "tray-toggle", ());
+            }
+            // Show only, never hide: a hidden pill is a forgotten timer.
+            "pill" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.unminimize();
+                    let _ = w.show();
+                    let _ = w.set_always_on_top(true); // re-raise it if another app has covered it
+                }
+            }
+            "settings" => show_settings(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, e| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
+                show_settings(tray.app_handle());
+            }
+        })
+        .build(app)?;
+    Ok(())
 }
 
 // Never edit a migration that has shipped; add the next version instead.
@@ -63,6 +124,11 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![quit])
+        .setup(|_app| {
+            #[cfg(desktop)]
+            tray(_app)?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

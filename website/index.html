@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>On Hours: count the hours you actually work</title>
+    <meta name="description" content="A tiny always-on-top timer for Windows. On when you work, off when you stop. Free and open source." />
+    <meta property="og:title" content="On Hours" />
+    <meta property="og:description" content="Count the hours you actually work. A tiny always-on-top timer for Windows." />
+    <meta property="og:type" content="website" />
+    <script>
+      // Before first paint: the saved choice, else the device setting. The button in the header changes it.
+      document.documentElement.dataset.mode =
+        localStorage.getItem("mode") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

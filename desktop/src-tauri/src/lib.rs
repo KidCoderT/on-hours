@@ -42,6 +42,30 @@ fn set_hotkey(app: tauri::AppHandle, state: tauri::State<Hotkey>, combo: String)
     Ok(())
 }
 
+/// Open at login is on by default: turned on at the first launch of an installed build, once.
+/// A marker file records that it happened, so if the user turns it off in Settings it stays off.
+/// Windows holds the setting itself (see System in SettingsWindow.tsx); nothing goes in the DB.
+#[cfg(desktop)]
+fn autostart_once(app: &tauri::App) {
+    use tauri::Manager;
+    use tauri_plugin_autostart::ManagerExt;
+    if cfg!(debug_assertions) {
+        return; // never register the dev exe to run at login
+    }
+    let Ok(dir) = app.path().app_data_dir() else { return };
+    let marker = dir.join("autostart-default-applied");
+    if marker.exists() {
+        return;
+    }
+    match app.autolaunch().enable() {
+        Ok(()) => {
+            let _ = std::fs::create_dir_all(&dir);
+            let _ = std::fs::write(&marker, "");
+        }
+        Err(e) => eprintln!("could not turn on open at login: {e}"),
+    }
+}
+
 #[cfg(desktop)]
 fn show_settings(app: &tauri::AppHandle) {
     use tauri::Manager;
@@ -174,7 +198,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![quit, set_hotkey])
         .setup(|_app| {
             #[cfg(desktop)]
-            tray(_app)?;
+            {
+                tray(_app)?;
+                autostart_once(_app);
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

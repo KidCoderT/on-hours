@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./settings.css"; // before the chart's CSS, matching the original cascade order
 import { useSettings } from "../../hooks/useSettings";
@@ -241,6 +243,52 @@ function System(api: SettingsApi) {
   );
 }
 
+/**
+ * "v0.1.1" in the footer, and "Update to 0.1.2" beside it when a release is out. The pill already
+ * updates by itself while paused (pill/useAutoUpdate.ts); this is for not waiting. Installing
+ * closes and restarts the app; a running session carries on (db.ts recoverOpenSession).
+ */
+function AppVersion() {
+  const [version, setVersion] = useState("");
+  const [update, setUpdate] = useState<Update | null>(null);
+  const [state, setState] = useState<"idle" | "updating" | "failed">("idle");
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    getVersion().then(setVersion).catch(() => { });
+    if (import.meta.env.DEV) return; // dev builds are never updated
+    let found = false;
+    // The window is hidden, not closed, so look again whenever it is opened. One small request.
+    const look = () => {
+      if (!found) check().then((u) => { found = !!u; setUpdate(u); }).catch((e) => console.error("update check failed", e));
+    };
+    look();
+    window.addEventListener("focus", look);
+    return () => window.removeEventListener("focus", look);
+  }, []);
+
+  const install = () => {
+    setState("updating");
+    update?.downloadAndInstall().catch((e) => {
+      console.error("could not install update", e);
+      setState("failed");
+    });
+  };
+
+  if (!version) return null;
+  return (
+    <p className="app-version">
+      <span>v{version}</span>
+      {update && state === "updating" && <span>Updating to {update.version}…</span>}
+      {update && state !== "updating" && (
+        <button type="button" className="link" onClick={install}>
+          {state === "failed" ? "Update failed, try again" : `Update to ${update.version}`}
+        </button>
+      )}
+    </p>
+  );
+}
+
 function SettingsWindow() {
   const settingsApi = useSettings();
   const { settings } = settingsApi;
@@ -279,9 +327,12 @@ function SettingsWindow() {
       <DailyRhythm {...settingsApi} />
       <System {...settingsApi} />
 
-      <button type="button" className="quit" onClick={() => invoke("quit")}>
-        Quit On Hours
-      </button>
+      <footer className="settings-foot">
+        <button type="button" className="quit" onClick={() => invoke("quit")}>
+          Quit On Hours
+        </button>
+        <AppVersion />
+      </footer>
     </main>
   );
 }

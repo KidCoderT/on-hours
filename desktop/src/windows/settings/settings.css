@@ -217,9 +217,64 @@
   gap: 12px;
 }
 
-.quit {
-  align-self: flex-start;
+/* Quit on the left, the version on the right: both quiet. */
+.settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 24px;
+}
+
+.app-version {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reads as the same muted text as the version; on hover the underline fades in. No colour change. */
+.app-version .link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.25s ease;
+}
+
+.app-version .link:hover {
+  text-decoration-color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-version .link {
+    transition: none;
+  }
+}
+
+.app-version .link:focus-visible {
+  outline: 2px solid var(--icon);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.app-version>*+*::before {
+  content: "·";
+  display: inline-block;
+  /* keeps the link underline off the dot */
+  margin-right: 10px;
+}
+
+.quit {
   padding: 9px 10px;
   margin-left: -10px;
   border: 0;

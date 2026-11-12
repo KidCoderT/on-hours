@@ -7,7 +7,7 @@ import { Reveal } from "../ui/Reveal";
 const MIN = 60_000;
 const BEATS: { title: string; body: string; state: DemoState }[] = [
   { title: "Press play when real work starts.", body: "The light turns yellow and the clock runs. Sitting at your desk doesn't count. Working does.", state: { elapsedMs: HOUR + 12 * MIN + 36_000, running: true, pausedMs: 0 } },
-  { title: "Press pause when it stops.", body: "Coffee, phone, lunch: pause. Stay away too long and the red light starts asking for you.", state: { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 25 * MIN } },
+  { title: "Press pause when it stops.", body: "Coffee, phone, lunch: pause. Ctrl + Alt + Shift + O does it from any app. Stay away too long and the red light starts asking for you.", state: { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 25 * MIN } },
   { title: "Hit your daily minimum.", body: "Set the number of hours you owe yourself. When you get there, the light goes green.", state: { elapsedMs: 4 * HOUR + 37 * MIN + 12_000, running: true, pausedMs: 0 } },
 ];
 

@@ -10,6 +10,7 @@ const ITEMS: [string, string][] = [
   ["Week starts on", "The first column of the history chart."],
   ["Long pause after", "How long a break can run before the pill warns you."],
   ["Open at login", "Start On Hours when you sign in to Windows."],
+  ["Pause / resume hotkey", "Start or pause from any app without touching the pill. Ctrl + Alt + Shift + O unless you pick your own."],
 ];
 
 export function Settings() {
@@ -17,7 +18,7 @@ export function Settings() {
     <section className="section wrap" id="settings">
       <Reveal>
         <p className="eyebrow">Settings</p>
-        <h2 className="section-title">Nine switches. That's all of them.</h2>
+        <h2 className="section-title">Ten switches. That's all of them.</h2>
         <p className="section-lead">Right-click the pill, or click the tray icon by the clock, to open settings.</p>
       </Reveal>
       <div className="settings-layout">
@@ -43,4 +44,4 @@ export function Settings() {
 }
 
 // Height of the screenshot at 450 wide; regenerate with `node scripts/shots/site.mjs`.
-const SHOT_HEIGHT = 782;
+const SHOT_HEIGHT = 848;

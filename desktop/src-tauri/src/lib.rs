@@ -4,6 +4,44 @@ fn quit(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+/// The one global hotkey (pause/resume), and the combo currently registered for it.
+#[cfg(desktop)]
+#[derive(Default)]
+struct Hotkey(std::sync::Mutex<Option<tauri_plugin_global_shortcut::Shortcut>>);
+
+/// Move the hotkey to `combo` (e.g. "Ctrl+Alt+Shift+O"); "" turns it off. Pressing it makes the
+/// pill toggle, exactly like the tray's Start / Pause. Errors are shown to the user as-is.
+/// The old combo is released only after the new one is taken, so a failure changes nothing.
+#[cfg(desktop)]
+#[tauri::command]
+fn set_hotkey(app: tauri::AppHandle, state: tauri::State<Hotkey>, combo: String) -> Result<(), String> {
+    use tauri::Emitter;
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+
+    let next = match combo.trim() {
+        "" => None,
+        c => Some(c.parse::<Shortcut>().map_err(|_| "That isn't a valid shortcut.".to_string())?),
+    };
+    let mut current = state.0.lock().unwrap();
+    if *current == next {
+        return Ok(());
+    }
+    let keys = app.global_shortcut();
+    if let Some(s) = next {
+        keys.on_shortcut(s, |app, _, e| {
+            if e.state == ShortcutState::Pressed {
+                let _ = app.emit_to("main", "tray-toggle", ());
+            }
+        })
+        .map_err(|_| "Another app is already using that shortcut.".to_string())?;
+    }
+    if let Some(old) = current.take() {
+        let _ = keys.unregister(old);
+    }
+    *current = next;
+    Ok(())
+}
+
 #[cfg(desktop)]
 fn show_settings(app: &tauri::AppHandle) {
     use tauri::Manager;
@@ -57,7 +95,12 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
             _ => {}
         })
         .on_tray_icon_event(|tray, e| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = e {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = e
+            {
                 show_settings(tray.app_handle());
             }
         })
@@ -115,7 +158,10 @@ pub fn run() {
                 .build(),
         )
         // Updates from GitHub Releases, signed with the key in tauri.conf.json. See pill/useAutoUpdate.ts.
-        .plugin(tauri_plugin_updater::Builder::new().build());
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        // The global pause/resume hotkey. Registered from set_hotkey below.
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .manage(Hotkey::default());
 
     builder
         // The DB is opened and migrated at startup (see `plugins.sql.preload` in tauri.conf.json).
@@ -125,7 +171,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![quit])
+        .invoke_handler(tauri::generate_handler![quit, set_hotkey])
         .setup(|_app| {
             #[cfg(desktop)]
             tray(_app)?;
@@ -133,4 +179,17 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(all(test, desktop))]
+mod tests {
+    /// Every combo the settings recorder can produce (lib/hotkey.ts) must parse.
+    #[test]
+    fn recorder_combos_parse() {
+        use tauri_plugin_global_shortcut::Shortcut;
+        for c in ["Ctrl+Alt+Shift+O", "Alt+1", "Ctrl+Shift+Space", "Ctrl+F9", "Alt+ArrowUp", "Ctrl+Numpad5", "Ctrl+Backquote", "Ctrl+Enter"] {
+            assert!(c.parse::<Shortcut>().is_ok(), "{c}");
+        }
+        assert!("Ctrl+Nonsense".parse::<Shortcut>().is_err());
+    }
 }

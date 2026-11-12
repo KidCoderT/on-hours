@@ -322,3 +322,64 @@ html:has(.settings) #root {
   height: 100%;
   background: var(--surface);
 }
+
+/* The hotkey recorder: a button that looks like the other fields, wider for "Ctrl + Alt + Shift + O". */
+.hotkey {
+  flex: none;
+  min-width: 112px;
+  height: 36px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.hotkey:hover:not(:disabled) {
+  border-color: var(--icon);
+}
+
+.hotkey:focus-visible {
+  outline: 2px solid var(--icon);
+  outline-offset: 3px;
+}
+
+.hotkey:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.row-error {
+  color: #d9382f;
+}
+
+.hotkey-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* A quiet text button: it only appears when the hotkey isn't the default. */
+.hotkey-reset {
+  padding: 4px 6px;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.hotkey-reset:hover {
+  color: var(--ink);
+}
+
+.hotkey-reset:focus-visible {
+  outline: 2px solid var(--icon);
+  outline-offset: 2px;
+}

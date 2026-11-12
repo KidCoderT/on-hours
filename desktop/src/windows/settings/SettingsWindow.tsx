@@ -4,7 +4,8 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./settings.css"; // before the chart's CSS, matching the original cascade order
 import { useSettings } from "../../hooks/useSettings";
-import { LONG_PAUSE_MIN } from "../../lib/settings";
+import { comboFromPress, showCombo } from "../../lib/hotkey";
+import { DEFAULT_SETTINGS, LONG_PAUSE_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
 import HistoryChart from "../../components/history/HistoryChart";
 import { themeById } from "../../themes/registry";
@@ -123,7 +124,82 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
   );
 }
 
-function System() {
+/**
+ * The global pause/resume key. Click it, press the new combo; Backspace turns it off, Esc cancels.
+ * While recording the hotkey is released, otherwise Windows would deliver the current combo to
+ * the shortcut instead of to this window, and it could never be chosen again.
+ * Rust registers it and says why when it can't (another app owns it), so we only save what worked.
+ */
+function HotkeyRow({ settings, loaded, save }: SettingsApi) {
+  const [recording, setRecording] = useState(false);
+  const [error, setError] = useState("");
+
+  const apply = (combo: string) =>
+    invoke("set_hotkey", { combo }).then(
+      () => {
+        setError("");
+        return true;
+      },
+      (e) => {
+        setError(String(e));
+        return false;
+      },
+    );
+
+  // Show right away if the saved combo can't be registered (e.g. another app took it since).
+  useEffect(() => {
+    if (isTauri() && loaded) void apply(settings.hotkey);
+  }, [loaded, settings.hotkey]);
+
+  const start = () => {
+    setRecording(true);
+    void apply(""); // release it; cancel() or a new choice puts a hotkey back
+  };
+  const cancel = () => {
+    setRecording(false);
+    void apply(settings.hotkey);
+  };
+  const choose = async (combo: string) => {
+    if (await apply(combo)) save("hotkey", combo, { ...settings, hotkey: combo });
+    else void apply(settings.hotkey); // e.g. taken by another app: keep the old one working
+  };
+
+  const onKeyDown = async (e: React.KeyboardEvent) => {
+    if (!recording) return;
+    e.preventDefault();
+    if (e.key === "Escape") return cancel();
+    const combo = e.key === "Backspace" ? "" : comboFromPress(e.nativeEvent);
+    if (combo === null) return; // only modifiers so far
+    setRecording(false);
+    await choose(combo);
+  };
+
+  return (
+    <div className="row">
+      <span className="row-copy">
+        <span id="hotkey-label">Pause / resume hotkey</span>
+        <small className={error ? "row-error" : undefined} role={error ? "alert" : undefined}>
+          {error || (recording ? "Press the new keys. Esc cancels, Backspace turns it off." : "Works from any app.")}
+        </small>
+      </span>
+      <span className="hotkey-controls">
+        {settings.hotkey !== DEFAULT_SETTINGS.hotkey && !recording && (
+          <button type="button" className="hotkey-reset" onClick={() => void choose(DEFAULT_SETTINGS.hotkey)}>
+            Reset
+          </button>
+        )}
+        <button
+          type="button" className="hotkey" aria-labelledby="hotkey-label" disabled={!isTauri()}
+          onClick={start} onKeyDown={onKeyDown} onBlur={() => recording && cancel()}
+        >
+          {recording ? "Press keys…" : settings.hotkey ? showCombo(settings.hotkey) : "Off"}
+        </button>
+      </span>
+    </div>
+  );
+}
+
+function System(api: SettingsApi) {
   // Windows owns this setting (Settings → Apps → Startup), so we read it from there
   // instead of the DB: whatever Windows says is what the switch shows.
   const [autostart, setAutostart] = useState(false);
@@ -160,6 +236,7 @@ function System() {
           checked={autostart} onChange={(e) => onAutostart(e.target.checked)}
         />
       </label>
+      <HotkeyRow {...api} />
     </section>
   );
 }
@@ -200,7 +277,7 @@ function SettingsWindow() {
       <h2 className="back-matter">Preferences</h2>
       <PillPrefs {...settingsApi} />
       <DailyRhythm {...settingsApi} />
-      <System />
+      <System {...settingsApi} />
 
       <button type="button" className="quit" onClick={() => invoke("quit")}>
         Quit On Hours

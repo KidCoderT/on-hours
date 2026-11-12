@@ -1,7 +1,7 @@
 // Settings shape, defaults, and parsing. Pure: no Tauri, no DB, so it is unit-tested.
 
 /**
- * weekStart: 0 = Sunday … 6 = Saturday. showInRecordings: false hides the pill from screen capture.
+ * hotkey: global pause/resume combo, "" = off (see lib/hotkey.ts). weekStart: 0 = Sunday … 6 = Saturday. showInRecordings: false hides the pill from screen capture.
  * pillTheme is a theme id; unknown ids fall back to the default theme in themes/registry.ts.
  */
 export type Settings = {
@@ -12,6 +12,7 @@ export type Settings = {
   pillTheme: string;
   pillSettingsButton: boolean;
   longPauseMs: number;
+  hotkey: string;
 };
 
 export type SettingKey =
@@ -21,7 +22,8 @@ export type SettingKey =
   | "show_in_recordings"
   | "pill_theme"
   | "pill_settings_button"
-  | "long_pause_min";
+  | "long_pause_min"
+  | "hotkey";
 
 const MIN = 60_000;
 
@@ -33,6 +35,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pillTheme: "baseline",
   pillSettingsButton: true,
   longPauseMs: 20 * MIN,
+  hotkey: "Ctrl+Alt+Shift+O",
 };
 
 /** Accepted range for the long-pause threshold, in minutes. */
@@ -60,5 +63,6 @@ export function parseSettings(rows: Record<string, string | undefined>): Setting
     pillTheme: rows.pill_theme?.trim() || d.pillTheme,
     pillSettingsButton: rows.pill_settings_button !== "0",
     longPauseMs: int(rows.long_pause_min, LONG_PAUSE_MIN.min, LONG_PAUSE_MIN.max, d.longPauseMs / MIN) * MIN,
+    hotkey: rows.hotkey === undefined ? d.hotkey : rows.hotkey.trim(), // a saved "" means the user turned it off
   };
 }

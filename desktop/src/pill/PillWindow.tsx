@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Window, getCurrentWindow } from "@tauri-apps/api/window";
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useSettings } from "../hooks/useSettings";
 import { useWindowPosition } from "../hooks/useWindowPosition";
 import { fmtClock, fmtHM } from "../lib/format";
@@ -84,6 +84,13 @@ function PillWindow() {
       unlisten.then((off) => off());
     };
   }, []);
+
+  // The global hotkey lives in Rust; keep it on the saved combo. A failure (another app owns
+  // the combo) is shown in Settings, where the same call is made.
+  useEffect(() => {
+    if (!isTauri() || !loaded) return;
+    invoke("set_hotkey", { combo: settings.hotkey }).catch((e) => console.error("hotkey not registered", e));
+  }, [loaded, settings.hotkey]);
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();

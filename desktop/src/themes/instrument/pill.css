@@ -9,18 +9,19 @@
 @font-face { font-family: "Instrument Mono"; src: url("./fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: block; }
 @font-face { font-family: "Instrument Mono"; src: url("./fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: block; }
 
-/* Light = reflective LCD: grey-green glass, black segments. */
+/* Light = reflective LCD, kept pale: a faint green tint at ~90% lightness. A mid-grey glass read as
+   dirty next to the other themes, and forced the amber down to brown. */
 .pill[data-theme="instrument"] {
-  --surface: #c8ccbc;
-  --ink: #1c1e17;
-  --muted: #4a4e42;
-  --ghost: #babead;
-  --hover: #b9bdac;
-  --pressed: #aeb2a0;
-  --amber: #8a5200;
-  --green: #0f6b34;
-  --dim: #6a6e60;
-  --red: #b4231a;
+  --surface: #e4e7dc;
+  --ink: #1b1d18;
+  --muted: #575b50;
+  --ghost: #d5d9cc;
+  --hover: #d6dacd;
+  --pressed: #c9cdbf;
+  --amber: #b35300;
+  --green: #137a3a;
+  --dim: #7f8477;
+  --red: #c42b1f;
   --lit: var(--amber);
 
   display: flex;

@@ -1,16 +1,16 @@
 /* Instrument's palette and type for the rest of the app (the settings window). Layout is the app's own.
    Same variable names as styles/tokens.css; applied when <html data-app-theme="instrument">. */
 :root[data-app-theme="instrument"] {
-  --surface: #c8ccbc;
-  --ink: #1c1e17;
-  --muted: #474b3f;
-  --edge: #a9ad9c;
+  --surface: #e4e7dc;
+  --ink: #1b1d18;
+  --muted: #575b50;
+  --edge: #c8ccbe;
   --icon: #3a3d33;
-  --hover: #bcc0af;
-  --pressed: #b0b4a2;
-  --red: #a8211a;
-  --yellow: #7d4a00;
-  --green: #0f6b34;
+  --hover: #d6dacd;
+  --pressed: #c9cdbf;
+  --red: #b8281d;
+  --yellow: #a34c00;
+  --green: #137a3a;
   --app-font: "Instrument Mono", ui-monospace, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {

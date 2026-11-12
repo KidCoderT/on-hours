@@ -140,7 +140,7 @@ body, .site-header, .hero-window, .soon-panel, .step-art, .window-frame, .histor
 
 /* ---- Styles: the stage takes each style's own paper and type ---- */
 .styles-stage { display: flex; flex-direction: column; align-items: center; min-height: 400px; margin-top: 48px; padding: 24px; border: 1px solid var(--edge); border-radius: 20px; background: var(--surface); color: var(--ink); transition: background-color 0.45s var(--ease), border-color 0.45s var(--ease), color 0.45s; }
-.styles-stage[data-style="instrument"] { --surface: #c8ccbc; --ink: #1c1e17; --muted: #474b3f; --edge: #a9ad9c; --hover: #bcc0af; --icon: #3a3d33; }
+.styles-stage[data-style="instrument"] { --surface: #e4e7dc; --ink: #1b1d18; --muted: #575b50; --edge: #c8ccbe; --hover: #d6dacd; --icon: #3a3d33; }
 .styles-stage[data-style="ledger"] { --surface: #f4f1ea; --ink: #1f1d1a; --muted: #67625a; --edge: #d6d9d2; --hover: #ebe6da; --icon: #5e584f; }
 @media (prefers-color-scheme: dark) {
   .styles-stage[data-style="instrument"] { --surface: #0e0e0c; --ink: #d9d6cc; --muted: #8f8c82; --edge: #2a2a26; --hover: #1c1c19; --icon: #a8a59a; }

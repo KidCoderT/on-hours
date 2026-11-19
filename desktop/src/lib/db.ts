@@ -27,18 +27,36 @@ export const lastSessionEnd = async () =>
 export const startSession = (now = Date.now()) =>
   db.execute("INSERT INTO sessions (start_ms, end_ms, open) VALUES ($1, $2, 1)", [now, now]);
 
-/** Called every ~30s while running, so a crash loses at most that much. */
-export const heartbeat = (now = Date.now()) =>
-  db.execute("UPDATE sessions SET end_ms = $1 WHERE open = 1", [now]);
+/** A running session whose last heartbeat is this old wasn't running: the PC slept, crashed or shut down. */
+export const STALE_MS = 2 * 60_000;
 
-export const pauseSession = (now = Date.now()) =>
-  db.execute("UPDATE sessions SET end_ms = $1, open = 0 WHERE open = 1", [now]);
+type Conn = Pick<Database, "execute">;
+
+/**
+ * Every write that moves the running session's end goes through here. If its last heartbeat is
+ * stale (the PC slept with the timer on), it is closed at that heartbeat instead, so the sleep
+ * never counts. Returns true if `now` was written, false if there was no fresh running session.
+ */
+export async function touchOpen(now: number, pause: boolean, conn: Conn = db) {
+  const fresh = await conn.execute(
+    "UPDATE sessions SET end_ms = $1, open = $2 WHERE open = 1 AND $1 - end_ms < $3",
+    [now, pause ? 0 : 1, STALE_MS],
+  );
+  if (fresh.rowsAffected) return true;
+  await conn.execute("UPDATE sessions SET open = 0 WHERE open = 1 AND $1 - end_ms >= $2", [now, STALE_MS]);
+  return false;
+}
+
+/** Called every ~30s while running, so a crash loses at most that much. False: the session is closed. */
+export const heartbeat = (now = Date.now()) => touchOpen(now, false);
+
+export const pauseSession = (now = Date.now()) => touchOpen(now, true);
 
 /**
  * On launch: a recent open session (reload / quick restart) keeps running and is returned.
  * A stale one (shutdown / crash) is closed at its last heartbeat, so off-time never counts.
  */
-export async function recoverOpenSession(staleAfterMs = 2 * 60_000): Promise<Session | null> {
+export async function recoverOpenSession(staleAfterMs = STALE_MS): Promise<Session | null> {
   const [open] = await db.select<Session[]>("SELECT * FROM sessions WHERE open = 1");
   if (!open) return null;
   if (Date.now() - open.end_ms < staleAfterMs) return open;

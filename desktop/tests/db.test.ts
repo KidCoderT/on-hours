@@ -2,7 +2,7 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import type { Session } from "../src/lib/db";
+import { STALE_MS, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
 import { dayRange, holdMs, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
@@ -127,4 +127,34 @@ test("hold time: today's pause survives a restart; a new day or fresh install st
   expect(holdMs(now, day - 4 * H, day, day - 10 * H)).toBe(9 * H);
   // A pause stamped after now (clock moved back) never goes negative.
   expect(holdMs(now, now + H, day, launchedNow)).toBe(0);
+});
+
+/* ---------- session writes ---------- */
+
+// The app's DB functions, run against bun:sqlite instead of the Tauri plugin.
+const conn = (db: Database) => ({
+  execute: async (sql: string, args: unknown[] = []) => ({ rowsAffected: db.query(sql).run(...(args as number[])).changes, lastInsertId: 0 }),
+});
+const only = (db: Database) => db.query("SELECT start_ms, end_ms, open FROM sessions").get();
+
+test("sleeping with the timer on never counts: the session closes at its last heartbeat", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db) as never;
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (0, 0, 1)");
+  expect(await touchOpen(30_000, false, c)).toBe(true); // a normal heartbeat
+  expect(only(db)).toEqual({ start_ms: 0, end_ms: 30_000, open: 1 });
+  // Woken 8h later: the heartbeat (or a pause) finds it stale and closes it at 30s.
+  expect(await touchOpen(8 * H, false, c)).toBe(false);
+  expect(only(db)).toEqual({ start_ms: 0, end_ms: 30_000, open: 0 });
+
+  db.run("DELETE FROM sessions");
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (0, 0, 1)");
+  expect(await touchOpen(8 * H, true, c)).toBe(false); // pausing right after wake
+  expect(only(db)).toEqual({ start_ms: 0, end_ms: 0, open: 0 });
+
+  db.run("DELETE FROM sessions");
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (0, 0, 1)");
+  expect(await touchOpen(STALE_MS - 1, true, c)).toBe(true); // an ordinary pause
+  expect(only(db)).toEqual({ start_ms: 0, end_ms: STALE_MS - 1, open: 0 });
 });

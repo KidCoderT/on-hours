@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
-import { heartbeat, lastSessionEnd, pauseSession, recoverOpenSession, sessionsBetween, startSession } from "../lib/db";
+import { heartbeat, lastSessionEnd, pauseSession, recoverOpenSession, sessionsBetween, STALE_MS, startSession } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import type { Settings } from "../lib/settings";
 import { dayRange, holdMs, trimmedTotal, workDayOf } from "../lib/time";
@@ -19,12 +19,16 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const [pausedSince, setPausedSince] = useState<number | null>(null); // end of the last session
   const [now, setNow] = useState(Date.now());
   const [launchedAt] = useState(Date.now);
+  const [synced, setSynced] = useState(0); // bump to re-read today's total from the DB
   const busy = useRef(false); // ignore double-clicks while a DB write is in flight
+  const runningRef = useRef(false);
+  const lastTick = useRef(Date.now());
 
   // Play stays disabled until we know the real goal/day-start and whether a session is open.
   const ready = recovered && settingsLoaded;
   const today = dayRange(workDayOf(new Date(now), settings.dayStart), settings.dayStart);
   const running = openStart !== null;
+  runningRef.current = running;
   // A session that began before today's start only counts from the day boundary.
   const runningMs = running ? Math.max(0, now - Math.max(openStart, today.from)) : 0;
   const elapsed = baseMs + runningMs;
@@ -49,18 +53,46 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     finishedTotal(today.from, today.to)
       .then(setBaseMs)
       .catch((e) => console.error("could not load today's total", e));
-  }, [ready, today.from, today.to]);
+  }, [ready, today.from, today.to, synced]);
+
+  /**
+   * Keep the running session's end fresh. If the DB finds it stale (the PC slept with the timer
+   * on) it closes it at the last heartbeat, and the pill shows paused from that moment.
+   */
+  const beat = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      if (!(await heartbeat())) {
+        setOpenStart(null);
+        setPausedSince(await lastSessionEnd());
+        setSynced((n) => n + 1);
+      }
+    } catch (e) {
+      console.error("heartbeat failed", e);
+    } finally {
+      busy.current = false;
+      setNow(Date.now());
+    }
+  };
 
   // Clock tick. Runs while paused too, so the display resets at the day boundary.
+  // A long gap between ticks means the PC slept: check the session before showing the slept time.
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => {
+      const t = Date.now();
+      const slept = t - lastTick.current >= STALE_MS;
+      lastTick.current = t;
+      if (slept && runningRef.current) void beat();
+      else if (!busy.current) setNow(t);
+    }, 1000);
     return () => clearInterval(id);
   }, []);
 
   // While running, keep the session's end time fresh so a crash loses at most 30s.
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => heartbeat().catch((e) => console.error("heartbeat failed", e)), HEARTBEAT_MS);
+    const id = setInterval(() => void beat(), HEARTBEAT_MS);
     return () => clearInterval(id);
   }, [running]);
 
@@ -75,10 +107,11 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     const t = Date.now();
     try {
       if (running) {
-        await pauseSession(t);
-        setBaseMs((b) => b + Math.max(0, t - Math.max(openStart, today.from)));
+        // Not written at t: the session went stale (slept) and was closed at its last heartbeat.
+        const end = (await pauseSession(t)) ? t : ((await lastSessionEnd()) ?? t);
+        setBaseMs((b) => b + Math.max(0, end - Math.max(openStart, today.from)));
         setOpenStart(null);
-        setPausedSince(t);
+        setPausedSince(end);
         setNow(t);
         // Re-read from the DB to correct any drift; the local sum above stands if this fails.
         finishedTotal(today.from, today.to)

@@ -2,7 +2,7 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { MIN_SESSION_MS, pauseSession, STALE_MS, touchOpen, type Session } from "../src/lib/db";
+import { MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
 import { dayRange, holdMs, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
@@ -170,4 +170,15 @@ test("pausing a misclick (under 5s) drops it; real sessions are kept", async () 
   db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (200000, 200000, 1)");
   await pauseSession(200000 + MIN_SESSION_MS, c);
   expect(db.query("SELECT COUNT(*) AS n FROM sessions").get()).toEqual({ n: 2 });
+});
+
+test("a session resumed after a quick restart keeps running past its first heartbeat", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = { ...conn(db), select: async (sql: string) => db.query(sql).all() } as never;
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (0, 0, 1)");
+  const relaunch = 100_000; // 100s after the last heartbeat: under STALE_MS, so it resumes
+  expect(await recoverOpenSession(relaunch, c)).not.toBeNull();
+  expect(await touchOpen(relaunch + 30_000, false, c)).toBe(true); // the first heartbeat after it
+  expect(only(db)).toEqual({ start_ms: 0, end_ms: relaunch + 30_000, open: 1 });
 });

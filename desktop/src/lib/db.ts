@@ -76,11 +76,15 @@ export const quitApp = () =>
  * On launch: a recent open session (reload / quick restart) keeps running and is returned.
  * A stale one (shutdown / crash) is closed at its last heartbeat, so off-time never counts.
  */
-export async function recoverOpenSession(staleAfterMs = STALE_MS): Promise<Session | null> {
-  const [open] = await db.select<Session[]>("SELECT * FROM sessions WHERE open = 1");
+export async function recoverOpenSession(now = Date.now(), conn: Pick<Database, "execute" | "select"> = db): Promise<Session | null> {
+  const [open] = await conn.select<Session[]>("SELECT * FROM sessions WHERE open = 1");
   if (!open) return null;
-  if (Date.now() - open.end_ms < staleAfterMs) return open;
-  await db.execute("UPDATE sessions SET open = 0 WHERE id = $1", [open.id]);
+  if (now - open.end_ms < STALE_MS) {
+    // Resumed: stamp it now, or the first heartbeat (30s on) could find the old end stale and close it.
+    await conn.execute("UPDATE sessions SET end_ms = $1 WHERE id = $2", [now, open.id]);
+    return open;
+  }
+  await conn.execute("UPDATE sessions SET open = 0 WHERE id = $1", [open.id]);
   return null;
 }
 

@@ -51,3 +51,5 @@ button, input, select { font: inherit; }
 .dot { position: relative; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--dot, var(--red)); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { :root.theme-ready { transition: none; } }
+/* The pill shell (pill/PillWindow.tsx) after a failed save: a static ring, the same in every theme. */
+.pill-shell[data-error] > .pill { outline: 2px solid var(--red); outline-offset: -2px; }

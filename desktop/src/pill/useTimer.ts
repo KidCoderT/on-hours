@@ -20,6 +20,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const [now, setNow] = useState(Date.now());
   const [launchedAt] = useState(Date.now);
   const [synced, setSynced] = useState(0); // bump to re-read today's total from the DB
+  const [saveFailed, setSaveFailed] = useState(false); // the last session write failed: the pill shows it
   const busy = useRef(false); // ignore double-clicks while a DB write is in flight
   const runningRef = useRef(false);
   const lastTick = useRef(Date.now());
@@ -63,13 +64,16 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     if (busy.current) return;
     busy.current = true;
     try {
-      if (!(await heartbeat())) {
+      const fresh = await heartbeat();
+      setSaveFailed(false);
+      if (!fresh) {
         setOpenStart(null);
         setPausedSince(await lastSessionEnd());
         setSynced((n) => n + 1);
       }
     } catch (e) {
       console.error("heartbeat failed", e);
+      setSaveFailed(true);
     } finally {
       busy.current = false;
       setNow(Date.now());
@@ -109,6 +113,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
       if (running) {
         // Not written at t: the session went stale (slept) and was closed at its last heartbeat.
         const end = (await pauseSession(t)) ? t : ((await lastSessionEnd()) ?? t);
+        setSaveFailed(false);
         setBaseMs((b) => b + Math.max(0, end - Math.max(openStart, today.from)));
         setOpenStart(null);
         setPausedSince(end);
@@ -119,11 +124,13 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
           .catch((e) => console.error("could not refresh today's total", e));
       } else {
         await startSession(t);
+        setSaveFailed(false);
         setOpenStart(t);
         setNow(t);
       }
     } catch (e) {
       console.error("could not save session", e);
+      setSaveFailed(true);
     } finally {
       busy.current = false;
     }
@@ -131,8 +138,8 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
 
   // Screenshot harness (scripts/shots): fixed state, nothing to toggle.
   if (fixture) {
-    return { elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs, ready: true, toggle: async () => {} };
+    return { elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs, ready: true, saveFailed: false, toggle: async () => {} };
   }
 
-  return { elapsed, running, done, pausedMs, ready, toggle };
+  return { elapsed, running, done, pausedMs, ready, saveFailed, toggle };
 }

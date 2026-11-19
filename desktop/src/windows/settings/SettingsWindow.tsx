@@ -75,7 +75,8 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
   const [goalText, onGoal] = useNumberField(
     settings.dailyGoalMs / 3_600_000,
     loaded,
-    (t) => (t !== "" && Number(t) > 0 && Number(t) <= 24 ? Number(t) : null),
+    // At least 1 minute once rounded, like parseSettings: a 0-minute goal would reload as the default.
+    (t) => (t !== "" && Math.round(Number(t) * 60) >= 1 && Number(t) <= 24 ? Number(t) : null),
     (h) => {
       const min = Math.round(h * 60);
       save("daily_goal_min", String(min), { ...settings, dailyGoalMs: min * 60_000 });

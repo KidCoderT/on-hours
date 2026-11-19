@@ -181,6 +181,16 @@ pub fn run() {
     // Desktop-only plugins (their crates are only in Cargo.toml for non-mobile targets).
     #[cfg(desktop)]
     let builder = builder
+        // One app at a time: two pills on one DB would fight over the open session.
+        // A second launch shows the running pill instead. Must be the first plugin.
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            use tauri::Manager;
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }))
         // Start at login. Windows itself stores whether it's on (no DB setting), so the
         // Settings switch reads/writes it directly via isEnabled / enable / disable.
         .plugin(tauri_plugin_autostart::Builder::new().build())

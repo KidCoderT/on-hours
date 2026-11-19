@@ -40,7 +40,8 @@ function PillWindow() {
   const settled = loaded || !isTauri();
   useWindowPosition();
   useFitWindow(width, loaded);
-  useAutoUpdate(running);
+  // Updates restart the app: wait for a long pause, not a quick break.
+  useAutoUpdate(!running && pausedMs >= settings.longPauseMs);
 
   // Screenshot harness only: tell it the window width and the registered themes, so it can
   // size the viewport and fail when a theme overflows its declared width.

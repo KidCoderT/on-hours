@@ -246,7 +246,7 @@ function System(api: SettingsApi) {
 
 /**
  * "v0.1.1" in the footer, and "Update to 0.1.2" beside it when a release is out. The pill already
- * updates by itself while paused (pill/useAutoUpdate.ts); this is for not waiting. Installing
+ * updates by itself during a long pause (pill/useAutoUpdate.ts); this is for not waiting. Installing
  * closes and restarts the app; a running session carries on (db.ts recoverOpenSession).
  */
 function AppVersion() {

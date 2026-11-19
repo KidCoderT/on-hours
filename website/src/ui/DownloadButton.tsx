@@ -24,7 +24,12 @@ export function DownloadButton({ release }: { release: Release }) {
       await navigator.share({ title: "On Hours", url }).catch(() => {});
       return;
     }
-    await navigator.clipboard.writeText(url);
+    try {
+      await navigator.clipboard.writeText(url); // clipboard is missing on http and can be refused
+    } catch {
+      window.prompt("Copy this link and open it on your PC:", url);
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

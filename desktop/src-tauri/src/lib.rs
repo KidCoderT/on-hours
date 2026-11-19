@@ -115,7 +115,19 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
                 }
             }
             "settings" => show_settings(app),
-            "quit" => app.exit(0),
+            // The pill pauses the running session, then calls `quit`. If its webview is stuck,
+            // quit anyway after 2s: the tray must always be able to close the app.
+            "quit" => {
+                if app.emit_to("main", "tray-quit", ()).is_err() {
+                    app.exit(0);
+                    return;
+                }
+                let app = app.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(2));
+                    app.exit(0);
+                });
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, e| {

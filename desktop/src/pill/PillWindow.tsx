@@ -4,6 +4,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useSettings } from "../hooks/useSettings";
 import { useWindowPosition } from "../hooks/useWindowPosition";
 import { fmtClock, fmtHM } from "../lib/format";
+import { quitApp } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import { pillWidth, THEMES, themeById } from "../themes/registry";
 import type { PillModel } from "../themes/types";
@@ -77,11 +78,15 @@ function PillWindow() {
   latest.current = m;
   useEffect(() => {
     if (!isTauri()) return;
-    const unlisten = getCurrentWindow().listen("tray-toggle", () => {
+    const win = getCurrentWindow();
+    const unlisten = win.listen("tray-toggle", () => {
       if (latest.current.ready) latest.current.toggle();
     });
+    // The tray's "Quit": close the running session first (lib.rs quits anyway if this hangs).
+    const unlistenQuit = win.listen("tray-quit", () => void quitApp());
     return () => {
       unlisten.then((off) => off());
+      unlistenQuit.then((off) => off());
     };
   }, []);
 

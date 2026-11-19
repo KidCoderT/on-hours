@@ -6,6 +6,7 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./settings.css"; // before the chart's CSS, matching the original cascade order
 import { useSettings } from "../../hooks/useSettings";
+import { quitApp } from "../../lib/db";
 import { comboFromPress, showCombo } from "../../lib/hotkey";
 import { DEFAULT_SETTINGS, LONG_PAUSE_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
@@ -328,7 +329,7 @@ function SettingsWindow() {
       <System {...settingsApi} />
 
       <footer className="settings-foot">
-        <button type="button" className="quit" onClick={() => invoke("quit")}>
+        <button type="button" className="quit" onClick={() => void quitApp()}>
           Quit On Hours
         </button>
         <AppVersion />

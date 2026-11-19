@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 import { parseSettings, type SettingKey, type Settings } from "./settings";
 
@@ -64,6 +65,12 @@ export async function pauseSession(now = Date.now(), conn: Conn = db) {
   }
   return atNow;
 }
+
+/** Quit without leaving a session open: reopening within STALE_MS would resume it and count the gap. */
+export const quitApp = () =>
+  pauseSession()
+    .catch((e) => console.error("could not pause before quitting", e))
+    .finally(() => invoke("quit"));
 
 /**
  * On launch: a recent open session (reload / quick restart) keeps running and is returned.

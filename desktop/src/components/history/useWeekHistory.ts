@@ -18,14 +18,24 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
 
   useEffect(() => {
     if (!isTauri()) return; // design preview: empty chart
+    // Paging fast starts several loads; only this week's may land, or the chart shows another week.
+    let alive = true;
+    const fail = (e: unknown) => console.error("could not load history", e);
     const load = () => {
-      sessionsBetween(from, to).then(setSessions);
-      firstSessionStart().then((t) => setMaxOffset(t ? Math.round((+thisWeekStart - +weekStartOf(new Date(t), weekStart)) / WEEK) : 0));
+      sessionsBetween(from, to)
+        .then((s) => alive && setSessions(s))
+        .catch(fail);
+      firstSessionStart()
+        .then((t) => alive && setMaxOffset(t ? Math.round((+thisWeekStart - +weekStartOf(new Date(t), weekStart)) / WEEK) : 0))
+        .catch(fail);
     };
     load();
     // The settings window is hidden, not closed, so refresh each time it's brought back.
     window.addEventListener("focus", load);
-    return () => window.removeEventListener("focus", load);
+    return () => {
+      alive = false;
+      window.removeEventListener("focus", load);
+    };
   }, [from, to, +thisWeekStart]);
 
   // ponytail: a running session counts up to "now" but only refreshes on focus / paging; add a timer if a live chart matters.

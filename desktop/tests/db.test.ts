@@ -2,7 +2,7 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { STALE_MS, touchOpen, type Session } from "../src/lib/db";
+import { MIN_SESSION_MS, pauseSession, STALE_MS, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
 import { dayRange, holdMs, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
@@ -157,4 +157,17 @@ test("sleeping with the timer on never counts: the session closes at its last he
   db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (0, 0, 1)");
   expect(await touchOpen(STALE_MS - 1, true, c)).toBe(true); // an ordinary pause
   expect(only(db)).toEqual({ start_ms: 0, end_ms: STALE_MS - 1, open: 0 });
+});
+
+test("pausing a misclick (under 5s) drops it; real sessions are kept", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db) as never;
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (0, 60000, 0)"); // earlier, closed
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (100000, 100000, 1)");
+  expect(await pauseSession(100000 + MIN_SESSION_MS - 1, c)).toBe(true);
+  expect(db.query("SELECT start_ms FROM sessions").all()).toEqual([{ start_ms: 0 }]);
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (200000, 200000, 1)");
+  await pauseSession(200000 + MIN_SESSION_MS, c);
+  expect(db.query("SELECT COUNT(*) AS n FROM sessions").get()).toEqual({ n: 2 });
 });

@@ -50,7 +50,20 @@ export async function touchOpen(now: number, pause: boolean, conn: Conn = db) {
 /** Called every ~30s while running, so a crash loses at most that much. False: the session is closed. */
 export const heartbeat = (now = Date.now()) => touchOpen(now, false);
 
-export const pauseSession = (now = Date.now()) => touchOpen(now, true);
+/** Sessions shorter than this are misclicks: pausing drops them instead of logging a blip. */
+export const MIN_SESSION_MS = 5_000;
+
+/** True if paused at `now`; false if the session had gone stale and was closed at its last heartbeat. */
+export async function pauseSession(now = Date.now(), conn: Conn = db) {
+  const atNow = await touchOpen(now, true, conn);
+  if (atNow) {
+    await conn.execute(
+      "DELETE FROM sessions WHERE id = (SELECT MAX(id) FROM sessions) AND open = 0 AND end_ms - start_ms < $1",
+      [MIN_SESSION_MS],
+    );
+  }
+  return atNow;
+}
 
 /**
  * On launch: a recent open session (reload / quick restart) keeps running and is returned.

@@ -25,7 +25,8 @@ const DAYS = Array.from({ length: 7 }, (_, i) => {
   const date = new Date(2026, 10, 2 + i);
   const from = date.getTime();
   const spans = BLOCKS.filter(([d]) => d === i).map(([, h, m, len]) => ({ start: from + h * HOUR + m * MIN, end: from + h * HOUR + (m + len) * MIN }));
-  return { date, from, spans, ms: spans.reduce((s, x) => s + x.end - x.start, 0), future: i > TODAY, today: i === TODAY };
+  const ms = spans.reduce((s, x) => s + x.end - x.start, 0);
+  return { date, from, spans, ms, future: i > TODAY, today: i === TODAY, on: [] as typeof spans, breaks: [] as typeof spans, onMs: 0, breakMs: 0 };
 });
 const TOTAL = DAYS.reduce((s, d) => s + d.ms, 0);
 const CLOSED = DAYS.slice(0, TODAY);

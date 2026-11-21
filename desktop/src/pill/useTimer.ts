@@ -130,8 +130,11 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   };
 
   const pause = async (t: number) => {
-    // Not written at t: the session went stale (slept) and was closed at its last heartbeat.
-    const end = (await pauseSession(t)) ? t : ((await lastSessionEnd()) ?? t);
+    // The pause runs from the last session's end, read back after the write: usually t, but the
+    // last heartbeat if the session went stale (slept), and the session before it if this one was
+    // a misclick (under 5s) and got dropped. So tapping play and pause can't reset the nagging.
+    await pauseSession(t);
+    const end = (await lastSessionEnd()) ?? t;
     setBaseMs((b) => b + Math.max(0, end - Math.max(openStart!, today.from)));
     setOpenStart(null);
     setPausedSince(end);

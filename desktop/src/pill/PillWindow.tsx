@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Window, getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { Menu } from "@tauri-apps/api/menu";
 import { useSettings } from "../hooks/useSettings";
 import { useWindowPosition } from "../hooks/useWindowPosition";
 import { fmtClock, fmtHM } from "../lib/format";
@@ -20,6 +21,9 @@ async function openSettings() {
   await win?.setFocus();
 }
 
+/** The right-click menu's break lengths, in minutes. */
+const BREAKS = [10, 15, 30];
+
 /** Shown (ring + tooltip + spoken) after a session write fails, until the next one succeeds. */
 const SAVE_FAILED = "Couldn't save your time. Try again.";
 
@@ -28,16 +32,17 @@ function spokenStatus(m: PillModel) {
   const today = `Today ${fmtClock(m.elapsedMs)}.`;
   if (m.done) return `${today} Daily goal met.`;
   if (m.running) return `${today} Working, daily goal not met.`;
+  if (m.pause === "break") return `${today} On a break, ${fmtHM(m.breakLeftMs)} left.`;
   return `${today} Paused for ${fmtHM(m.pausedMs)}, daily goal not met.`;
 }
 
 /**
  * The pill window's shell: timer, settings, window plumbing. The active theme only draws.
- * Right-click anywhere opens settings, whatever the theme and whether its button is shown.
+ * Right-click anywhere opens a menu (breaks, settings), whatever the theme and whether its button is shown.
  */
 function PillWindow() {
   const { settings, loaded } = useSettings();
-  const { elapsed, running, done, pausedMs, ready, saveFailed, toggle } = useTimer(settings, loaded);
+  const { elapsed, running, done, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow } = useTimer(settings, loaded);
   const theme = themeById(settings.pillTheme);
   const width = pillWidth(theme, settings.pillSettingsButton);
   // In the app, wait for the saved settings so the pill never flashes the default theme first.
@@ -71,7 +76,8 @@ function PillWindow() {
     running,
     done,
     pausedMs,
-    pause: pauseLevel({ running, done, pausedMs }, settings),
+    breakLeftMs,
+    pause: pauseLevel({ running, done, pausedMs, onBreak, sinceBreakMs }, settings),
     ready,
     showSettingsButton: settings.pillSettingsButton,
     toggle: () => void toggle(),
@@ -104,7 +110,13 @@ function PillWindow() {
 
   const onContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    m.openSettings();
+    if (!isTauri()) return;
+    const breaks = onBreak
+      ? [{ text: "End break", action: () => void endBreakNow() }]
+      : BREAKS.map((min) => ({ text: `Take a ${min} min break`, enabled: ready, action: () => void takeBreak(min * 60_000) }));
+    Menu.new({ items: [...breaks, { item: "Separator" as const }, { text: "Settings", action: m.openSettings }] })
+      .then((menu) => menu.popup())
+      .catch((err) => console.error("could not open the pill menu", err));
   };
 
   if (!settled) return null;

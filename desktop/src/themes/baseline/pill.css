@@ -45,7 +45,8 @@
   }
 }
 
-/* One light: red paused, yellow working, green goal met. The number never dims. */
+/* One light: red paused, yellow working, green goal met, blue on a planned break. The number never dims. */
+.pill[data-theme="baseline"][data-pause="break"] { --light: var(--accent); --rim: color-mix(in srgb, var(--accent) 80%, #000); }
 .pill[data-theme="baseline"][data-running="true"] { --light: var(--yellow); --rim: var(--yellow-rim); }
 .pill[data-theme="baseline"][data-done="true"] { --light: var(--green); --rim: var(--green-rim); }
 

@@ -55,7 +55,7 @@
   }
 }
 .pill[data-theme="instrument"][data-mode="met"] { --lit: var(--green); }
-.pill[data-theme="instrument"][data-mode="hold"] { --lit: var(--dim); }
+.pill[data-theme="instrument"]:is([data-mode="hold"], [data-mode="brk"]) { --lit: var(--dim); }
 .pill[data-theme="instrument"]:is([data-mode="idle"], [data-mode="alm"]) { --lit: var(--red); }
 
 /* Seven-segment readout: unlit "8"s sit behind the lit digits, like real glass. */

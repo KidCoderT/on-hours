@@ -41,18 +41,25 @@ export const holdMs = (now: number, lastPause: number | null, dayFrom: number, l
 export const trimmedTotal = (sessions: Span[], from: number, to: number) =>
   sessions.reduce((sum, s) => sum + Math.max(0, Math.min(s.end_ms, to) - Math.max(s.start_ms, from)), 0);
 
-/** How hard a paused pill nags. "none" while running. */
-export type PauseLevel = "none" | "short" | "nudge" | "long" | "alarm";
+/** How hard a paused pill nags. "none" while running, "break" during a planned break. */
+export type PauseLevel = "none" | "short" | "nudge" | "long" | "alarm" | "break";
 
 /**
  * The pause stages: short, then nudge (5 min by default), long ("Long pause after"), and alarm at
  * twice the long pause. Once today's goal is met nothing nags: the pause stays short.
+ * A planned break never nags. After one, the stages count from the break's end, starting at nudge:
+ * the break was the rest, so going over it nags right away, but the break itself is never held against you.
  */
-export function pauseLevel(p: { running: boolean; done: boolean; pausedMs: number }, s: { nudgeMs: number; longPauseMs: number }): PauseLevel {
+export function pauseLevel(
+  p: { running: boolean; done: boolean; pausedMs: number; onBreak: boolean; sinceBreakMs: number | null },
+  s: { nudgeMs: number; longPauseMs: number },
+): PauseLevel {
   if (p.running) return "none";
+  if (p.onBreak) return "break";
   if (p.done) return "short";
-  if (p.pausedMs >= 2 * s.longPauseMs) return "alarm";
-  if (p.pausedMs >= s.longPauseMs) return "long";
-  if (p.pausedMs >= s.nudgeMs) return "nudge";
+  const ms = p.sinceBreakMs ?? p.pausedMs;
+  if (ms >= 2 * s.longPauseMs) return "alarm";
+  if (ms >= s.longPauseMs) return "long";
+  if (ms >= s.nudgeMs || p.sinceBreakMs !== null) return "nudge";
   return "short";
 }

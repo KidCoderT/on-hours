@@ -5,15 +5,19 @@ import type { PillModel } from "../types";
 import "./pill.css";
 
 /**
- * Today's line in the book. Ink while running, pencil while briefly paused, and green ink with a
- * double underline once the goal is kept. A pause that drags on gets marked up, harder each stage:
+ * Today's line in the book. Ink while running, pencil while briefly paused or on a planned break
+ * (the note counts it down), and green ink with a double underline once the goal is kept. A pause that drags on gets marked up, harder each stage:
  * nudge underlines the note in red, a long pause turns the line red and stamps the note OVERDUE,
  * and the alarm strikes the figure out and re-stamps the note with what is still owed today.
  */
 function Pill({ m }: { m: PillModel }) {
   const late = m.pause === "long" || m.pause === "alarm";
   const entry = m.done ? "kept" : m.running ? "ink" : late ? "idle" : "pencil";
-  const note = m.pause === "alarm" ? `owe ${fmtHMM(m.goalMs - m.elapsedMs)}` : late ? "overdue" : `held ${fmtHMM(m.pausedMs)}`;
+  const note =
+    m.pause === "break" ? `rest ${fmtHMM(m.breakLeftMs)}`
+    : m.pause === "alarm" ? `owe ${fmtHMM(m.goalMs - m.elapsedMs)}`
+    : late ? "overdue"
+    : `held ${fmtHMM(m.pausedMs)}`;
 
   return (
     <div className="pill" data-theme="ledger" data-entry={entry} data-running={m.running} data-pause={m.pause}>

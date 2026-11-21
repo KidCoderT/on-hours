@@ -60,7 +60,7 @@ function PillPrefs({ settings, save }: SettingsApi) {
         </div>
       </div>
       <label className="row">
-        <span className="row-copy"><span>Settings button</span><small>Right-click the pill always opens settings.</small></span>
+        <span className="row-copy"><span>Settings button</span><small>Right-click the pill for breaks and settings.</small></span>
         <input type="checkbox" role="switch" className="switch" checked={settings.pillSettingsButton} onChange={(e) => onButton(e.target.checked)} />
       </label>
       <label className="row">

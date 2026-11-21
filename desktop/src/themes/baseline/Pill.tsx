@@ -6,7 +6,8 @@ import "./pill.css";
 
 /**
  * A Mac panel. The status light is a window traffic light: red paused, yellow working,
- * green goal met. Paused, the red light bounces more and more often the longer it lasts.
+ * green goal met, blue on a planned break. Paused, the red light bounces more and more often
+ * the longer it lasts.
  * Rules: design/DIRECTION_BASELINE.md.
  */
 function Pill({ m }: { m: PillModel }) {

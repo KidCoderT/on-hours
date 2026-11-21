@@ -186,14 +186,20 @@ test("a session resumed after a quick restart keeps running past its first heart
 test("pause stages: short, nudge at 5 min, long at the setting, alarm at twice it", () => {
   const M = 60_000;
   const s = { nudgeMs: 5 * M, longPauseMs: 20 * M };
-  const at = (min: number, done = false) => pauseLevel({ running: false, done, pausedMs: min * M }, s);
-  expect(pauseLevel({ running: true, done: false, pausedMs: 0 }, s)).toBe("none");
+  const p = { running: false, done: false, pausedMs: 0, onBreak: false, sinceBreakMs: null };
+  const at = (min: number, done = false) => pauseLevel({ ...p, done, pausedMs: min * M }, s);
+  expect(pauseLevel({ ...p, running: true }, s)).toBe("none");
   expect([at(0), at(4.9), at(5), at(19.9), at(20), at(39.9), at(40)]).toEqual(["short", "short", "nudge", "nudge", "long", "long", "alarm"]);
   expect(at(90, true)).toBe("short"); // goal met: nothing nags
   // Long pause set to the 5 min minimum: nudge never shows, long and alarm still come in order.
   const tight = { nudgeMs: 5 * M, longPauseMs: 5 * M };
-  expect(pauseLevel({ running: false, done: false, pausedMs: 5 * M }, tight)).toBe("long");
-  expect(pauseLevel({ running: false, done: false, pausedMs: 10 * M }, tight)).toBe("alarm");
+  expect(pauseLevel({ ...p, pausedMs: 5 * M }, tight)).toBe("long");
+  expect(pauseLevel({ ...p, pausedMs: 10 * M }, tight)).toBe("alarm");
+  // A break never nags, goal met or not. After it the stages restart from its end, at nudge.
+  expect(pauseLevel({ ...p, pausedMs: 90 * M, onBreak: true }, s)).toBe("break");
+  expect(pauseLevel({ ...p, pausedMs: 46 * M, sinceBreakMs: 1 * M }, s)).toBe("nudge"); // 45 min break, 1 min over
+  expect(pauseLevel({ ...p, pausedMs: 66 * M, sinceBreakMs: 21 * M }, s)).toBe("long");
+  expect(pauseLevel({ ...p, pausedMs: 66 * M, sinceBreakMs: 21 * M, done: true }, s)).toBe("short");
   // A nudge_min row (a future setting) is read; nonsense falls back to 5.
   expect(parseSettings({ nudge_min: "8" }).nudgeMs).toBe(8 * M);
   expect(parseSettings({ nudge_min: "0" }).nudgeMs).toBe(5 * M);

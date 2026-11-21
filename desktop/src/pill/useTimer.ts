@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
-import { heartbeat, lastSessionEnd, pauseSession, recoverOpenSession, sessionsBetween, STALE_MS, startSession } from "../lib/db";
+import { endBreak, heartbeat, lastBreak, lastSessionEnd, pauseSession, recoverOpenSession, sessionsBetween, STALE_MS, startBreak, startSession } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import type { Settings } from "../lib/settings";
 import { dayRange, holdMs, trimmedTotal, workDayOf } from "../lib/time";
@@ -19,6 +19,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const [pausedSince, setPausedSince] = useState<number | null>(null); // end of the last session
   const [now, setNow] = useState(Date.now());
   const [launchedAt] = useState(Date.now);
+  const [brk, setBrk] = useState<{ start: number; end: number } | null>(null); // the latest break
   const [synced, setSynced] = useState(0); // bump to re-read today's total from the DB
   const [saveFailed, setSaveFailed] = useState(false); // the last session write failed: the pill shows it
   const busy = useRef(false); // ignore double-clicks while a DB write is in flight
@@ -35,6 +36,10 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const elapsed = baseMs + runningMs;
   const done = elapsed >= settings.dailyGoalMs;
   const pausedMs = running ? 0 : holdMs(now, pausedSince, today.from, launchedAt);
+  const onBreak = !running && brk !== null && brk.start <= now && now < brk.end;
+  const breakLeftMs = onBreak ? brk.end - now : 0;
+  // A break that ended during this pause: the nagging counts from its end (lib/time.ts pauseLevel).
+  const sinceBreakMs = !running && !onBreak && brk !== null && brk.end >= now - pausedMs ? now - brk.end : null;
 
   // On launch: resume a session still running from before a reload/restart,
   // otherwise remember when the last one ended so hold time survives the restart.
@@ -44,6 +49,8 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
       const open = await recoverOpenSession();
       setOpenStart(open?.start_ms ?? null);
       if (!open) setPausedSince(await lastSessionEnd());
+      const b = await lastBreak(); // a restart mid-break carries on with it
+      if (b) setBrk({ start: b.start_ms, end: b.end_ms });
       setRecovered(true);
     })().catch((e) => console.error("could not load timer", e));
   }, []);
@@ -105,41 +112,68 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
    * Once the write succeeds the screen follows it, even if the total refresh after it fails:
    * showing "running" for a closed session would log nothing from then on.
    */
-  const toggle = async () => {
+  const write = async (what: (t: number) => Promise<void>) => {
     if (busy.current || !ready) return;
     busy.current = true;
     const t = Date.now();
     try {
-      if (running) {
-        // Not written at t: the session went stale (slept) and was closed at its last heartbeat.
-        const end = (await pauseSession(t)) ? t : ((await lastSessionEnd()) ?? t);
-        setSaveFailed(false);
-        setBaseMs((b) => b + Math.max(0, end - Math.max(openStart, today.from)));
-        setOpenStart(null);
-        setPausedSince(end);
-        setNow(t);
-        // Re-read from the DB to correct any drift; the local sum above stands if this fails.
-        finishedTotal(today.from, today.to)
-          .then(setBaseMs)
-          .catch((e) => console.error("could not refresh today's total", e));
-      } else {
-        await startSession(t);
-        setSaveFailed(false);
-        setOpenStart(t);
-        setNow(t);
-      }
+      await what(t);
+      setSaveFailed(false);
     } catch (e) {
-      console.error("could not save session", e);
+      console.error("could not save", e);
       setSaveFailed(true);
     } finally {
       busy.current = false;
+      setNow(t);
     }
   };
 
+  const pause = async (t: number) => {
+    // Not written at t: the session went stale (slept) and was closed at its last heartbeat.
+    const end = (await pauseSession(t)) ? t : ((await lastSessionEnd()) ?? t);
+    setBaseMs((b) => b + Math.max(0, end - Math.max(openStart!, today.from)));
+    setOpenStart(null);
+    setPausedSince(end);
+    // Re-read from the DB to correct any drift; the local sum above stands if this fails.
+    finishedTotal(today.from, today.to)
+      .then(setBaseMs)
+      .catch((e) => console.error("could not refresh today's total", e));
+  };
+
+  const stopBreak = async (t: number) => {
+    await endBreak(t);
+    setBrk((b) => b && { ...b, end: t });
+  };
+
+  /** Play / pause. Starting work ends a running break. */
+  const toggle = () =>
+    write(async (t) => {
+      if (running) return pause(t);
+      if (onBreak) await stopBreak(t);
+      await startSession(t);
+      setOpenStart(t);
+    });
+
+  /** A planned break of `ms`. Pauses first if running; the break starts only once that is saved. */
+  const takeBreak = (ms: number) =>
+    write(async (t) => {
+      if (running) await pause(t);
+      await startBreak(t, ms);
+      setBrk({ start: t, end: t + ms });
+    });
+
+  /** Back from a break early without starting work: the nagging picks up at nudge. */
+  const endBreakNow = () => write(async (t) => (onBreak ? stopBreak(t) : undefined));
+
   // Screenshot harness (scripts/shots): fixed state, nothing to toggle.
   if (fixture) {
-    return { elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs, ready: true, saveFailed: false, toggle: async () => {} };
+    const left = "breakLeftMs" in fixture ? fixture.breakLeftMs : 0;
+    const idle = async () => {};
+    return {
+      elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs,
+      onBreak: left > 0, breakLeftMs: left, sinceBreakMs: null, ready: true, saveFailed: false, toggle: idle, takeBreak: idle, endBreakNow: idle,
+    };
   }
 
-  return { elapsed, running, done, pausedMs, ready, saveFailed, toggle };
+  return { elapsed, running, done, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow };
 }

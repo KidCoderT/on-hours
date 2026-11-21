@@ -27,6 +27,7 @@ export type PillModel = {
   running: boolean;
   done: boolean; // goal met today
   pausedMs: number; // hold time, 0 while running
+  breakLeftMs: number; // time left on a planned break (pause "break"), else 0
   pause: PauseLevel;
   ready: boolean; // play is enabled
   showSettingsButton: boolean;

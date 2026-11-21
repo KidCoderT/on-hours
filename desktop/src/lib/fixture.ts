@@ -15,6 +15,7 @@ export const PILL_STATES = {
   "paused-nudge": { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 8 * MIN },
   "paused-long": { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 25 * MIN },
   "paused-alarm": { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 2 * HOUR + 50 * MIN },
+  "on-break": { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 6 * MIN, breakLeftMs: 9 * MIN },
 } as const;
 export type PillState = keyof typeof PILL_STATES;
 

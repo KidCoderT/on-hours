@@ -183,16 +183,17 @@ test("a session resumed after a quick restart keeps running past its first heart
   expect(only(db)).toEqual({ start_ms: 0, end_ms: relaunch + 30_000, open: 1 });
 });
 
-test("pause stages: short, nudge at 5 min, long at the setting, alarm at twice it", () => {
+test("pause stages: short, nudge at 5 min, long at the setting, alarm at 1.5 times it", () => {
   const M = 60_000;
-  const s = { nudgeMs: 5 * M, longPauseMs: 20 * M };
+  const s = { nudgeMs: 5 * M, longPauseMs: 20 * M, alarmFactor: 1.5 };
   const p = { running: false, done: false, pausedMs: 0, onBreak: false, sinceBreakMs: null };
   const at = (min: number, done = false) => pauseLevel({ ...p, done, pausedMs: min * M }, s);
   expect(pauseLevel({ ...p, running: true }, s)).toBe("none");
-  expect([at(0), at(4.9), at(5), at(19.9), at(20), at(39.9), at(40)]).toEqual(["short", "short", "nudge", "nudge", "long", "long", "alarm"]);
+  expect([at(0), at(4.9), at(5), at(19.9), at(20), at(29.9), at(30)]).toEqual(["short", "short", "nudge", "nudge", "long", "long", "alarm"]);
+  expect(pauseLevel({ ...p, pausedMs: 39 * M }, { ...s, alarmFactor: 2 })).toBe("long"); // "Alarm after" moves it
   expect(at(90, true)).toBe("short"); // goal met: nothing nags
   // Long pause set to the 5 min minimum: nudge never shows, long and alarm still come in order.
-  const tight = { nudgeMs: 5 * M, longPauseMs: 5 * M };
+  const tight = { nudgeMs: 5 * M, longPauseMs: 5 * M, alarmFactor: 2 };
   expect(pauseLevel({ ...p, pausedMs: 5 * M }, tight)).toBe("long");
   expect(pauseLevel({ ...p, pausedMs: 10 * M }, tight)).toBe("alarm");
   // A break never nags, goal met or not. After it the stages restart from its end, at nudge.
@@ -203,6 +204,8 @@ test("pause stages: short, nudge at 5 min, long at the setting, alarm at twice i
   // A nudge_min row (a future setting) is read; nonsense falls back to 5.
   expect(parseSettings({ nudge_min: "8" }).nudgeMs).toBe(8 * M);
   expect(parseSettings({ nudge_min: "0" }).nudgeMs).toBe(5 * M);
+  expect(parseSettings({ alarm_factor: "2.5" }).alarmFactor).toBe(2.5);
+  expect(["1", "9", "x", ""].map((v) => parseSettings({ alarm_factor: v }).alarmFactor)).toEqual([1.5, 1.5, 1.5, 1.5]);
 });
 
 test("breaks: a new one ends the running one, ending early stamps now, ending none does nothing", async () => {

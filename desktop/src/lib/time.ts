@@ -46,19 +46,19 @@ export type PauseLevel = "none" | "short" | "nudge" | "long" | "alarm" | "break"
 
 /**
  * The pause stages: short, then nudge (5 min by default), long ("Long pause after"), and alarm at
- * twice the long pause. Once today's goal is met nothing nags: the pause stays short.
+ * "Alarm after" times the long pause (1.5 by default). Once today's goal is met nothing nags: the pause stays short.
  * A planned break never nags. After one, the stages count from the break's end, starting at nudge:
  * the break was the rest, so going over it nags right away, but the break itself is never held against you.
  */
 export function pauseLevel(
   p: { running: boolean; done: boolean; pausedMs: number; onBreak: boolean; sinceBreakMs: number | null },
-  s: { nudgeMs: number; longPauseMs: number },
+  s: { nudgeMs: number; longPauseMs: number; alarmFactor: number },
 ): PauseLevel {
   if (p.running) return "none";
   if (p.onBreak) return "break";
   if (p.done) return "short";
   const ms = p.sinceBreakMs ?? p.pausedMs;
-  if (ms >= 2 * s.longPauseMs) return "alarm";
+  if (ms >= s.alarmFactor * s.longPauseMs) return "alarm";
   if (ms >= s.longPauseMs) return "long";
   if (ms >= s.nudgeMs || p.sinceBreakMs !== null) return "nudge";
   return "short";

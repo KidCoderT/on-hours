@@ -13,6 +13,7 @@ export type Settings = {
   pillSettingsButton: boolean;
   longPauseMs: number;
   nudgeMs: number;
+  alarmFactor: number; // the alarm comes at this many long pauses
   hotkey: string;
 };
 
@@ -25,6 +26,7 @@ export type SettingKey =
   | "pill_settings_button"
   | "long_pause_min"
   | "nudge_min"
+  | "alarm_factor"
   | "hotkey";
 
 const MIN = 60_000;
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pillSettingsButton: true,
   longPauseMs: 20 * MIN,
   nudgeMs: 5 * MIN,
+  alarmFactor: 1.5,
   hotkey: "Ctrl+Alt+Shift+O",
 };
 
@@ -51,12 +54,21 @@ export const LONG_PAUSE_MIN = { min: 5, max: 240 };
  */
 export const NUDGE_MIN = { min: 1, max: 240 };
 
+/** Accepted range for the alarm, in long pauses: always after the long pause, at most 5 of them. */
+export const ALARM_FACTOR = { min: 1.25, max: 5 };
+
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /** A whole number in [min, max], or the fallback. Rejects "", NaN, Infinity, and out-of-range values. */
 const int = (raw: string | undefined, min: number, max: number, fallback: number) => {
   const n = raw === undefined || raw.trim() === "" ? NaN : Number(raw);
   return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
+};
+
+/** A number in [min, max], or the fallback. Rejects "", NaN and Infinity. */
+const num = (raw: string | undefined, min: number, max: number, fallback: number) => {
+  const n = raw === undefined || raw.trim() === "" ? NaN : Number(raw);
+  return Number.isFinite(n) && n >= min && n <= max ? n : fallback;
 };
 
 /**
@@ -74,6 +86,7 @@ export function parseSettings(rows: Record<string, string | undefined>): Setting
     pillSettingsButton: rows.pill_settings_button !== "0",
     longPauseMs: int(rows.long_pause_min, LONG_PAUSE_MIN.min, LONG_PAUSE_MIN.max, d.longPauseMs / MIN) * MIN,
     nudgeMs: int(rows.nudge_min, NUDGE_MIN.min, NUDGE_MIN.max, d.nudgeMs / MIN) * MIN,
+    alarmFactor: num(rows.alarm_factor, ALARM_FACTOR.min, ALARM_FACTOR.max, d.alarmFactor),
     hotkey: rows.hotkey === undefined ? d.hotkey : rows.hotkey.trim(), // a saved "" means the user turned it off
   };
 }

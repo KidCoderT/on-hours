@@ -13,6 +13,35 @@ pub fn away() -> Away {
     Away { idle_ms: idle_ms(), locked: locked() }
 }
 
+/// Where the cursor is (physical px) and whether a mouse button or a key is down, or was pressed
+/// since the last call. While the "welcome back" bubble is up, a click elsewhere or typing
+/// dismisses it (the bubble can't take focus, so it never sees those itself).
+#[derive(serde::Serialize)]
+pub struct Input {
+    x: i32,
+    y: i32,
+    mouse: bool,
+    key: bool,
+}
+
+#[tauri::command]
+pub fn input_now() -> Input {
+    input()
+}
+
+#[cfg(windows)]
+fn input() -> Input {
+    use windows_sys::Win32::Foundation::POINT;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+    // High bit: down now. Low bit: pressed since the last call, so a quick click between polls counts.
+    let pressed = |vk: i32| unsafe { GetAsyncKeyState(vk) } as u16 & 0x8001 != 0;
+    let mut p = POINT { x: 0, y: 0 };
+    unsafe { GetCursorPos(&mut p) };
+    // Codes 1–6 are mouse buttons; 8 and up are keys.
+    Input { x: p.x, y: p.y, mouse: [1, 2, 4, 5, 6].into_iter().any(pressed), key: (8..=254).any(pressed) }
+}
+
 #[cfg(windows)]
 fn idle_ms() -> u32 {
     use windows_sys::Win32::System::SystemInformation::GetTickCount;
@@ -46,7 +75,11 @@ fn locked() -> bool {
     }
 }
 
-// Elsewhere: never idle, never locked (the app ships for Windows only).
+// Elsewhere: never idle, never locked, no input (the app ships for Windows only).
+#[cfg(not(windows))]
+fn input() -> Input {
+    Input { x: 0, y: 0, mouse: false, key: false }
+}
 #[cfg(not(windows))]
 fn idle_ms() -> u32 {
     0

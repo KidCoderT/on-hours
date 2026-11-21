@@ -105,3 +105,37 @@
 .pill[data-theme="ledger"] button:focus-visible { outline: 1px solid var(--ink); outline-offset: -1px; }
 .pill[data-theme="ledger"] button:disabled { opacity: 0.4; cursor: default; }
 .pill[data-theme="ledger"] button svg { width: 16px; height: 16px; display: block; }
+
+/* A pause that drags on gets marked up in red ink. Nudge: the margin note is underlined. */
+.pill[data-theme="ledger"][data-pause="nudge"] .note {
+  color: var(--red);
+  text-decoration: underline 1px var(--red);
+  text-underline-offset: 2px;
+}
+/* Long: the note becomes a red rubber stamp, OVERDUE, that lands once. Alarm: the figure is
+   struck out and the stamp, now what is still owed today, comes down again every few seconds. */
+.pill[data-theme="ledger"]:is([data-pause="long"], [data-pause="alarm"]) .note {
+  padding: 2px 2px 1px;
+  border: 1.5px solid var(--red);
+  letter-spacing: 0.02em;
+  border-radius: 2px;
+  font-weight: 700;
+  transform: rotate(-6deg);
+  animation: ledger-stamp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1.2) 1 both;
+}
+.pill[data-theme="ledger"][data-pause="alarm"] .note { animation: ledger-restamp 4s cubic-bezier(0.2, 0.8, 0.2, 1.2) infinite both; }
+.pill[data-theme="ledger"][data-pause="alarm"] .figure {
+  text-decoration: line-through 2px var(--red);
+  text-decoration-skip-ink: none;
+}
+@keyframes ledger-stamp {
+  from { opacity: 0; transform: rotate(-6deg) scale(1.8); }
+}
+/* The same 0.35s landing at the start of a 4s cycle. */
+@keyframes ledger-restamp {
+  0% { opacity: 0; transform: rotate(-6deg) scale(1.8); }
+  8.75%, 100% { opacity: 1; transform: rotate(-6deg) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pill[data-theme="ledger"] .note { animation: none !important; }
+}

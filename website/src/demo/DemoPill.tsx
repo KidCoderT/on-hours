@@ -9,7 +9,7 @@ export function DemoPill({ theme, model, className }: Props) {
   const t = themeById(theme);
   const width = pillWidth(t, model.showSettingsButton);
   return (
-    <div className={`demo-pill ${className ?? ""}`} style={{ "--w": `${width}px` } as CSSProperties}>
+    <div className={`demo-pill ${className ?? ""}`} data-pause={model.pause} style={{ "--w": `${width}px` } as CSSProperties}>
       <div className="demo-pill-inner">
         <t.Pill m={model} />
       </div>

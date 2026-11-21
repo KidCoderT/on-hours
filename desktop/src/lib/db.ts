@@ -88,6 +88,25 @@ export async function recoverOpenSession(now = Date.now(), conn: Pick<Database, 
   return null;
 }
 
+/** The most recently ended session: the one an away-pause just closed. */
+export const lastClosedSession = async () =>
+  (await db.select<Session[]>("SELECT * FROM sessions WHERE open = 0 ORDER BY end_ms DESC LIMIT 1"))[0] ?? null;
+
+/**
+ * "I was working": reopen the session an away-pause closed, stamped at `now` so the first heartbeat
+ * finds it fresh. Only if nothing happened since: it is still the latest session, still ends at
+ * `end`, and no other session is running. True if reopened.
+ */
+export async function reopenSession(id: number, end: number, now: number, conn: Conn = db) {
+  const r = await conn.execute(
+    `UPDATE sessions SET open = 1, end_ms = $1
+     WHERE id = $2 AND end_ms = $3 AND open = 0
+       AND id = (SELECT MAX(id) FROM sessions) AND NOT EXISTS (SELECT 1 FROM sessions WHERE open = 1)`,
+    [now, id, end],
+  );
+  return r.rowsAffected > 0;
+}
+
 /* ---------- breaks ---------- */
 
 export type Break = { id: number; start_ms: number; end_ms: number };

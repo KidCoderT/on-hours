@@ -2,9 +2,9 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { endBreak, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
+import { endBreak, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
-import { dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
+import { awayAction, dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
 const H = 3_600_000;
 const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, end_ms: end, open: 0 });
@@ -236,4 +236,35 @@ test("PC on: heartbeats extend one stretch; a sleep, shutdown or clock change st
     { start_ms: 60_000 + STALE_MS, end_ms: 90_000 + STALE_MS },
     { start_ms: 10_000, end_ms: 10_000 },
   ]);
+});
+
+test("away: a lock pauses; idle checks in, then pauses later; 0 turns either stage off", () => {
+  const M = 60_000;
+  const s = { checkInMs: 10 * M, pauseAfterMs: 20 * M };
+  const at = (min: number, settings = s) => awayAction({ idleMs: min * M, locked: false }, settings);
+  expect(awayAction({ idleMs: 0, locked: true }, s)).toBe("lock");
+  expect(awayAction({ idleMs: 0, locked: true }, { checkInMs: 0, pauseAfterMs: 0 })).toBe("lock");
+  expect([at(9.9), at(10), at(19.9), at(20), at(90)]).toEqual([null, "check", "check", "pause", "pause"]);
+  expect(at(30, { checkInMs: 0, pauseAfterMs: 20 * M })).toBe("pause"); // no check-in, still pauses
+  expect(at(30, { checkInMs: 10 * M, pauseAfterMs: 0 })).toBe("check"); // never pauses, keeps asking
+  expect(at(99, { checkInMs: 0, pauseAfterMs: 0 })).toBe(null);
+  expect(parseSettings({})).toMatchObject({ checkInMs: 10 * M, pauseAfterMs: 20 * M });
+  expect(parseSettings({ check_in_min: "0", pause_after_min: "0" })).toMatchObject({ checkInMs: 0, pauseAfterMs: 0 });
+  expect(parseSettings({ check_in_min: "15", pause_after_min: "45" })).toMatchObject({ checkInMs: 15 * M, pauseAfterMs: 45 * M });
+  // Out of range or not whole minutes: the default.
+  expect(["1", "61", "2.5", "x"].map((v) => parseSettings({ check_in_min: v }).checkInMs)).toEqual([10 * M, 10 * M, 10 * M, 10 * M]);
+  expect(["4", "121", "x"].map((v) => parseSettings({ pause_after_min: v }).pauseAfterMs)).toEqual([20 * M, 20 * M, 20 * M]);
+});
+
+test("away, then \"it was work\": the session reopens at now, but only if nothing happened since", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db);
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (0, 600000, 0)"); // closed by an away-pause at 10 min
+  expect(await reopenSession(1, 600_000, 1_500_000, c)).toBe(true);
+  expect(only(db)).toEqual({ start_ms: 0, end_ms: 1_500_000, open: 1 }); // fresh for the first heartbeat
+  expect(await reopenSession(1, 600_000, 1_600_000, c)).toBe(false); // asked twice: no-op
+  db.run("UPDATE sessions SET open = 0");
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (1700000, 1700000, 1)"); // pressed play before answering
+  expect(await reopenSession(1, 1_500_000, 1_800_000, c)).toBe(false);
 });

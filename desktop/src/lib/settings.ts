@@ -14,6 +14,8 @@ export type Settings = {
   longPauseMs: number;
   nudgeMs: number;
   alarmFactor: number; // the alarm comes at this many long pauses
+  checkInMs: number; // no input this long while running: the bubble asks "still there?". 0 = off
+  pauseAfterMs: number; // no input this long while running: pause at the last input. 0 = off
   hotkey: string;
 };
 
@@ -27,6 +29,8 @@ export type SettingKey =
   | "long_pause_min"
   | "nudge_min"
   | "alarm_factor"
+  | "check_in_min"
+  | "pause_after_min"
   | "hotkey";
 
 const MIN = 60_000;
@@ -41,6 +45,8 @@ export const DEFAULT_SETTINGS: Settings = {
   longPauseMs: 20 * MIN,
   nudgeMs: 5 * MIN,
   alarmFactor: 1.5,
+  checkInMs: 10 * MIN,
+  pauseAfterMs: 20 * MIN,
   hotkey: "Ctrl+Alt+Shift+O",
 };
 
@@ -56,6 +62,13 @@ export const NUDGE_MIN = { min: 1, max: 240 };
 
 /** Accepted range for the alarm, in long pauses: always after the long pause, at most 5 of them. */
 export const ALARM_FACTOR = { min: 1.25, max: 5 };
+
+/** Accepted ranges for the idle settings, in minutes. 0 turns either off. "Pause after" must come later. */
+export const CHECK_IN_MIN = { min: 2, max: 60 };
+export const PAUSE_AFTER_MIN = { min: 5, max: 120 };
+/** A whole number of minutes in range, or 0 (off), or the fallback. */
+const minutesOrOff = (raw: string | undefined, r: { min: number; max: number }, fallback: number) =>
+  raw?.trim() === "0" ? 0 : int(raw, r.min, r.max, fallback / MIN) * MIN;
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -87,6 +100,8 @@ export function parseSettings(rows: Record<string, string | undefined>): Setting
     longPauseMs: int(rows.long_pause_min, LONG_PAUSE_MIN.min, LONG_PAUSE_MIN.max, d.longPauseMs / MIN) * MIN,
     nudgeMs: int(rows.nudge_min, NUDGE_MIN.min, NUDGE_MIN.max, d.nudgeMs / MIN) * MIN,
     alarmFactor: num(rows.alarm_factor, ALARM_FACTOR.min, ALARM_FACTOR.max, d.alarmFactor),
+    checkInMs: minutesOrOff(rows.check_in_min, CHECK_IN_MIN, d.checkInMs),
+    pauseAfterMs: minutesOrOff(rows.pause_after_min, PAUSE_AFTER_MIN, d.pauseAfterMs),
     hotkey: rows.hotkey === undefined ? d.hotkey : rows.hotkey.trim(), // a saved "" means the user turned it off
   };
 }

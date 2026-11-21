@@ -8,7 +8,7 @@ import "./settings.css"; // before the chart's CSS, matching the original cascad
 import { useSettings } from "../../hooks/useSettings";
 import { quitApp } from "../../lib/db";
 import { comboFromPress, showCombo } from "../../lib/hotkey";
-import { ALARM_FACTOR, DEFAULT_SETTINGS, LONG_PAUSE_MIN } from "../../lib/settings";
+import { ALARM_FACTOR, CHECK_IN_MIN, DEFAULT_SETTINGS, LONG_PAUSE_MIN, PAUSE_AFTER_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
 import HistoryChart from "../../components/history/HistoryChart";
 import { themeById } from "../../themes/registry";
@@ -71,7 +71,54 @@ function PillPrefs({ settings, save }: SettingsApi) {
   );
 }
 
-function DailyRhythm({ settings, loaded, save }: SettingsApi) {
+/**
+ * The two idle settings, in minutes, 0 for off: when the bubble checks in, and when the timer
+ * pauses. "Pause after" must come later than "Check in after"; a value that breaks that isn't saved.
+ */
+function IdleRows({ settings, loaded, save }: SettingsApi) {
+  const MIN = 60_000;
+  const checkIn = settings.checkInMs / MIN;
+  const pauseAfter = settings.pauseAfterMs / MIN;
+  const minutes = (t: string, r: { min: number; max: number }) => (t === "0" ? 0 : /^[0-9]+$/.test(t) && Number(t) >= r.min && Number(t) <= r.max ? Number(t) : null);
+  const parseCheck = (t: string) => { const n = minutes(t, CHECK_IN_MIN); return n === null || (n && pauseAfter && n >= pauseAfter) ? null : n; };
+  const parsePause = (t: string) => { const n = minutes(t, PAUSE_AFTER_MIN); return n === null || (n && checkIn && n <= checkIn) ? null : n; };
+  const [checkText, onCheck] = useNumberField(checkIn, loaded, parseCheck, (n) => save("check_in_min", String(n), { ...settings, checkInMs: n * MIN }));
+  const [pauseText, onPause] = useNumberField(pauseAfter, loaded, parsePause, (n) => save("pause_after_min", String(n), { ...settings, pauseAfterMs: n * MIN }));
+  const checkBad = checkText !== "" && parseCheck(checkText) === null;
+  const pauseBad = pauseText !== "" && parsePause(pauseText) === null;
+
+  return (
+    <>
+      <label className="row">
+        <span className="row-copy">
+          <span>Check in after</span>
+          <small className={checkBad ? "row-error" : undefined}>
+            {checkBad ? `${CHECK_IN_MIN.min}–${CHECK_IN_MIN.max} min, before "Pause after", or 0 for off.` : checkIn ? "No keyboard or mouse this long: a bubble asks if you're still there." : "Off."}
+          </small>
+        </span>
+        <span className="field">
+          <input aria-label="Check in after, in minutes, 0 for off" type="number" min={0} max={CHECK_IN_MIN.max} step={1} value={checkText} onChange={(e) => onCheck(e.target.value)} />
+          <span aria-hidden="true">min</span>
+        </span>
+      </label>
+      <label className="row">
+        <span className="row-copy">
+          <span>Pause after</span>
+          <small className={pauseBad ? "row-error" : undefined}>
+            {pauseBad ? `${PAUSE_AFTER_MIN.min}–${PAUSE_AFTER_MIN.max} min, after "Check in after", or 0 for off.` : pauseAfter ? "The timer pauses at your last input, and asks when you're back." : "Off. Locking the PC still pauses the timer."}
+          </small>
+        </span>
+        <span className="field">
+          <input aria-label="Pause after, in minutes, 0 for off" type="number" min={0} max={PAUSE_AFTER_MIN.max} step={5} value={pauseText} onChange={(e) => onPause(e.target.value)} />
+          <span aria-hidden="true">min</span>
+        </span>
+      </label>
+    </>
+  );
+}
+
+function DailyRhythm(api: SettingsApi) {
+  const { settings, loaded, save } = api;
   const [goalText, onGoal] = useNumberField(
     settings.dailyGoalMs / 3_600_000,
     loaded,
@@ -143,6 +190,7 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
           <span aria-hidden="true">×</span>
         </span>
       </label>
+      <IdleRows {...api} />
     </section>
   );
 }

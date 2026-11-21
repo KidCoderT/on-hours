@@ -63,3 +63,20 @@ export function pauseLevel(
   if (ms >= s.nudgeMs || p.sinceBreakMs !== null) return "nudge";
   return "short";
 }
+
+/**
+ * Is anyone at the PC while the timer runs?
+ * - "lock": the session is locked. Pause at the last input, ask nothing.
+ * - "pause": no keyboard or mouse for "Pause after". Pause at the last input, ask on return.
+ * - "check": no input for "Check in after". The bubble asks "still there?"; the timer keeps running.
+ * Either idle setting at 0 is off.
+ */
+export function awayAction(
+  p: { idleMs: number; locked: boolean },
+  s: { checkInMs: number; pauseAfterMs: number },
+): "lock" | "pause" | "check" | null {
+  if (p.locked) return "lock";
+  if (s.pauseAfterMs > 0 && p.idleMs >= s.pauseAfterMs) return "pause";
+  if (s.checkInMs > 0 && p.idleMs >= s.checkInMs) return "check";
+  return null;
+}

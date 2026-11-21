@@ -135,7 +135,6 @@ function PillWindow() {
     <div
       className="pill-shell" data-tauri-drag-region="deep" onContextMenu={onContextMenu}
       data-error={saveFailed || undefined} title={saveFailed ? SAVE_FAILED : undefined}
-      style={alarm ? { zoom: ALARM_ZOOM } : undefined}
     >
       {/* Not a live region: it changes every second and would read the clock aloud nonstop. */}
       <span className="sr-only">{saveFailed && `${SAVE_FAILED} `}{spokenStatus(m)}</span>

@@ -53,3 +53,5 @@ button, input, select { font: inherit; }
 @media (prefers-reduced-motion: reduce) { :root.theme-ready { transition: none; } }
 /* The pill shell (pill/PillWindow.tsx) after a failed save: a static ring, the same in every theme. */
 .pill-shell[data-error] > .pill { outline: 2px solid var(--red); outline-offset: -2px; }
+/* The alarm grows the pill: useFitWindow.ts sets --pill-zoom as it resizes the window, frame by frame. */
+.pill-shell { zoom: var(--pill-zoom, 1); }

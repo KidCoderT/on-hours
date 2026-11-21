@@ -12,6 +12,7 @@ import { pillWidth, THEMES, themeById } from "../themes/registry";
 import type { PillModel } from "../themes/types";
 import { useAlarm } from "./useAlarm";
 import { useAutoUpdate } from "./useAutoUpdate";
+import { useAwakeLog } from "./useAwakeLog";
 import { useFitWindow } from "./useFitWindow";
 import { useTimer } from "./useTimer";
 
@@ -52,6 +53,7 @@ function PillWindow() {
   // In the app, wait for the saved settings so the pill never flashes the default theme first.
   const settled = loaded || !isTauri();
   useWindowPosition();
+  useAwakeLog();
   // Updates restart the app: wait for a long pause, not a quick break.
   useAutoUpdate(!running && pausedMs >= settings.longPauseMs);
 

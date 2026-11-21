@@ -2,7 +2,7 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { endBreak, MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
+import { endBreak, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
 import { dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
@@ -217,5 +217,20 @@ test("breaks: a new one ends the running one, ending early stamps now, ending no
   expect(db.query("SELECT start_ms, end_ms FROM breaks ORDER BY id").all()).toEqual([
     { start_ms: 0, end_ms: 5 * M },
     { start_ms: 5 * M, end_ms: 20 * M },
+  ]);
+});
+
+test("PC on: heartbeats extend one stretch; a sleep, shutdown or clock change starts another", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db);
+  for (const t of [0, 30_000, 60_000]) await markAwake(t, c);
+  await markAwake(60_000 + STALE_MS, c); // slept 2 min: new stretch
+  await markAwake(60_000 + STALE_MS + 30_000, c);
+  await markAwake(10_000, c); // clock set back: never stretch backwards
+  expect(db.query("SELECT start_ms, end_ms FROM awake ORDER BY id").all()).toEqual([
+    { start_ms: 0, end_ms: 60_000 },
+    { start_ms: 60_000 + STALE_MS, end_ms: 90_000 + STALE_MS },
+    { start_ms: 10_000, end_ms: 10_000 },
   ]);
 });

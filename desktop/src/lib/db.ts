@@ -110,6 +110,26 @@ export async function startBreak(now: number, ms: number, conn: Conn = db) {
   await conn.execute("INSERT INTO breaks (start_ms, end_ms) VALUES ($1, $2)", [now, now + ms]);
 }
 
+/* ---------- PC on ---------- */
+
+export type Awake = { id: number; start_ms: number; end_ms: number };
+
+/**
+ * Extend the current "PC on" stretch to `now`, or start a new one after a gap longer than
+ * STALE_MS (sleep, shutdown, app closed) or a clock that moved back.
+ */
+export async function markAwake(now = Date.now(), conn: Conn = db) {
+  const extended = await conn.execute(
+    "UPDATE awake SET end_ms = $1 WHERE id = (SELECT MAX(id) FROM awake) AND $1 >= end_ms AND $1 - end_ms < $2",
+    [now, STALE_MS],
+  );
+  if (!extended.rowsAffected) await conn.execute("INSERT INTO awake (start_ms, end_ms) VALUES ($1, $1)", [now]);
+}
+
+/** "PC on" stretches overlapping [from, to), oldest first. */
+export const awakeBetween = (from: number, to: number) =>
+  db.select<Awake[]>("SELECT * FROM awake WHERE end_ms > $1 AND start_ms < $2 ORDER BY start_ms", [from, to]);
+
 /* ---------- settings ---------- */
 
 export async function getSettings(): Promise<Settings> {

@@ -8,7 +8,7 @@ import "./settings.css"; // before the chart's CSS, matching the original cascad
 import { useSettings } from "../../hooks/useSettings";
 import { quitApp } from "../../lib/db";
 import { comboFromPress, showCombo } from "../../lib/hotkey";
-import { DEFAULT_SETTINGS, LONG_PAUSE_MIN } from "../../lib/settings";
+import { ALARM_FACTOR, DEFAULT_SETTINGS, LONG_PAUSE_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
 import HistoryChart from "../../components/history/HistoryChart";
 import { themeById } from "../../themes/registry";
@@ -60,7 +60,7 @@ function PillPrefs({ settings, save }: SettingsApi) {
         </div>
       </div>
       <label className="row">
-        <span className="row-copy"><span>Settings button</span><small>Right-click the pill always opens settings.</small></span>
+        <span className="row-copy"><span>Settings button</span><small>Right-click the pill for breaks and settings.</small></span>
         <input type="checkbox" role="switch" className="switch" checked={settings.pillSettingsButton} onChange={(e) => onButton(e.target.checked)} />
       </label>
       <label className="row">
@@ -87,6 +87,12 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
     loaded,
     (t) => (/^\d+$/.test(t) && Number(t) >= LONG_PAUSE_MIN.min && Number(t) <= LONG_PAUSE_MIN.max ? Number(t) : null),
     (min) => save("long_pause_min", String(min), { ...settings, longPauseMs: min * 60_000 }),
+  );
+  const [alarmText, onAlarm] = useNumberField(
+    settings.alarmFactor,
+    loaded,
+    (t) => (t !== "" && Number(t) >= ALARM_FACTOR.min && Number(t) <= ALARM_FACTOR.max ? Number(t) : null),
+    (x) => save("alarm_factor", String(x), { ...settings, alarmFactor: x }),
   );
 
   const onDayStart = (value: string) => {
@@ -122,6 +128,19 @@ function DailyRhythm({ settings, loaded, save }: SettingsApi) {
             value={pauseText} onChange={(e) => onPause(e.target.value)}
           />
           <span aria-hidden="true">min</span>
+        </span>
+      </label>
+      <label className="row">
+        <span className="row-copy">
+          <span>Alarm after</span>
+          <small>Times the long pause: the pill grows and shakes at {Math.round((settings.longPauseMs / 60_000) * settings.alarmFactor)} min.</small>
+        </span>
+        <span className="field">
+          <input
+            aria-label="Alarm after, in long pauses" type="number" min={ALARM_FACTOR.min} max={ALARM_FACTOR.max} step={0.25}
+            value={alarmText} onChange={(e) => onAlarm(e.target.value)}
+          />
+          <span aria-hidden="true">×</span>
         </span>
       </label>
     </section>

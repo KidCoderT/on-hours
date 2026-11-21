@@ -1,15 +1,26 @@
 import { useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
-import { firstSessionStart, sessionsBetween, type Session } from "../../lib/db";
-import { fixture, fixtureSessions } from "../../lib/fixture";
+import { awakeBetween, breaksBetween, firstSessionStart, sessionsBetween, STALE_MS, type Session } from "../../lib/db";
+import { fixture, fixtureAwake, fixtureBreaks, fixtureSessions } from "../../lib/fixture";
 import { addDays, dayRange, weekStartOf, startOfDay, trimmedTotal, WEEK, workDayOf } from "../../lib/time";
 
-/** Worked time per day for the week `offset` weeks back, plus the week before it for deltas. */
+type Span = { start_ms: number; end_ms: number };
+
+/** Each span's slice of [from, to), for the timeline. */
+const slices = (spans: Span[], from: number, to: number) =>
+  spans.filter((s) => s.end_ms > from && s.start_ms < to).map((s) => ({ start: Math.max(s.start_ms, from), end: Math.min(s.end_ms, to) }));
+
+/**
+ * Worked time per day for the week `offset` weeks back, plus the week before it for deltas.
+ * Also when the PC was on and the planned breaks, for the timeline.
+ */
 export function useWeekHistory(offset: number, dayStart: string, weekStart: number) {
   const today = startOfDay(workDayOf(new Date(), dayStart));
   const thisWeekStart = weekStartOf(today, weekStart);
   const first = addDays(thisWeekStart, -7 * offset);
   const [sessions, setSessions] = useState<Session[]>(() => (fixture ? fixtureSessions(Date.now()) : []));
+  const [awake, setAwake] = useState<Span[]>(() => (fixture ? fixtureAwake(Date.now()) : []));
+  const [breaks, setBreaks] = useState<Span[]>(() => (fixture ? fixtureBreaks(Date.now()) : []));
   const [maxOffset, setMaxOffset] = useState(fixture ? 1 : 0); // can't page back past the first session
 
   // Load this week plus the week before it (for "vs last week / vs yesterday").
@@ -24,6 +35,12 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
     const load = () => {
       sessionsBetween(from, to)
         .then((s) => alive && setSessions(s))
+        .catch(fail);
+      awakeBetween(from, to)
+        .then((s) => alive && setAwake(s))
+        .catch(fail);
+      breaksBetween(from, to)
+        .then((s) => alive && setBreaks(s))
         .catch(fail);
       firstSessionStart()
         .then((t) => alive && setMaxOffset(t ? Math.round((+thisWeekStart - +weekStartOf(new Date(t), weekStart)) / WEEK) : 0))
@@ -41,6 +58,9 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
   // ponytail: a running session counts up to "now" but only refreshes on focus / paging; add a timer if a live chart matters.
   const now = Date.now();
   const live = sessions.map((s) => (s.open ? { ...s, end_ms: now } : s));
+  // The current PC-on stretch runs to now; a running break shows only what has passed.
+  const awakeLive = awake.map((s) => (now - s.end_ms < STALE_MS ? { ...s, end_ms: now } : s));
+  const breaksLive = breaks.map((s) => (s.end_ms > now ? { ...s, end_ms: Math.max(s.start_ms, now) } : s));
   const worked = (date: Date) => {
     const r = dayRange(date, dayStart);
     return trimmedTotal(live, r.from, r.to);
@@ -49,11 +69,14 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
   const days = Array.from({ length: 7 }, (_, i) => {
     const date = addDays(first, i);
     const { from, to } = dayRange(date, dayStart);
-    // Each session's slice of this day, for the timeline view.
-    const spans = live
-      .filter((s) => s.end_ms > from && s.start_ms < to)
-      .map((s) => ({ start: Math.max(s.start_ms, from), end: Math.min(s.end_ms, to) }));
-    return { date, from, spans, ms: worked(date), future: date > today, today: +date === +today };
+    return {
+      date, from, ms: worked(date), future: date > today, today: +date === +today,
+      spans: slices(live, from, to),
+      on: slices(awakeLive, from, to),
+      breaks: slices(breaksLive, from, to),
+      onMs: trimmedTotal(awakeLive, from, to),
+      breakMs: trimmedTotal(breaksLive, from, to),
+    };
   });
 
   // Week total vs the same number of days last week (fair for a week in progress).

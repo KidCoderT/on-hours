@@ -101,6 +101,14 @@ function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
           <span className="vs"> vs {prevName}</span>
         </span>
       </div>
+      {/* Work always happens with the PC on, so less PC time than work means the log doesn't cover the
+          day (the day it was installed): the comparison would be wrong, so leave it out. */}
+      {day.onMs > 0 && day.onMs >= day.ms && (
+        <p className="usage">
+          PC on {fmtHM(day.onMs)} · focused {fmtHM(day.ms)} ({Math.round((day.ms / day.onMs) * 100)}%)
+          {day.breakMs > 0 && <> · breaks {fmtHM(day.breakMs)}</>}
+        </p>
+      )}
       {closed.length > 0 && (
         <p className="memo">
           {kept} of {closed.length} {closed.length === 1 ? "day" : "days"} kept · goal {fmtHM(goalMs)} a day

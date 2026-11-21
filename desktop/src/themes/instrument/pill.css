@@ -22,6 +22,7 @@
   --green: #137a3a;
   --dim: #7f8477;
   --red: #c42b1f;
+  --blue: #1f5fbf; /* a break: Baseline's blue light, as a lit segment */
   --lit: var(--amber);
 
   display: flex;
@@ -52,11 +53,13 @@
     --green: #5be38c;
     --dim: #6e6b62;
     --red: #ff4a3d;
+    --blue: #4ea4ff;
   }
 }
 .pill[data-theme="instrument"][data-mode="met"] { --lit: var(--green); }
 .pill[data-theme="instrument"][data-mode="hold"] { --lit: var(--dim); }
-.pill[data-theme="instrument"][data-mode="idle"] { --lit: var(--red); }
+.pill[data-theme="instrument"][data-mode="brk"] { --lit: var(--blue); }
+.pill[data-theme="instrument"]:is([data-mode="idle"], [data-mode="alm"]) { --lit: var(--red); }
 
 /* Seven-segment readout: unlit "8"s sit behind the lit digits, like real glass. */
 .pill[data-theme="instrument"] .seg { position: relative; display: inline-block; font-family: "Instrument DSEG7", monospace; font-weight: 700; line-height: 1; white-space: nowrap; font-variant-numeric: normal; }
@@ -76,9 +79,22 @@
 .pill[data-theme="instrument"] .annunciator .word { color: var(--lit); font-weight: 700; text-transform: uppercase; }
 .pill[data-theme="instrument"] .annunciator .sub { color: var(--muted); font-weight: 500; }
 
-/* Alarm: the colons blink at 1 Hz. The first frame is lit, so stills always show the colon. */
-.pill[data-theme="instrument"][data-mode="idle"] .colon { animation: instrument-blink 1s steps(1, end) infinite; }
+/* Idle and alarm: the colons blink at 1 Hz. The first frame is lit, so stills always show the colon. */
+.pill[data-theme="instrument"]:is([data-mode="idle"], [data-mode="alm"]) .colon { animation: instrument-blink 1s steps(1, end) infinite; }
 @keyframes instrument-blink { 50% { opacity: 0; } }
+/* Nudge: HOLD blinks like a clock nobody has set. */
+.pill[data-theme="instrument"][data-pause="nudge"] .annunciator .word { animation: instrument-blink 1s steps(1, end) infinite; }
+/* Alarm: the glass flashes red like an alarm clock and one lit segment races along the gauge. */
+.pill[data-theme="instrument"][data-mode="alm"] { animation: instrument-flash 1s steps(1, end) infinite; }
+.pill[data-theme="instrument"][data-mode="alm"] .gauge i { animation: instrument-chase 1s steps(1, end) infinite; animation-delay: calc(var(--i) * 0.1s); }
+/* The unlit glass (ghost digits, dark gauge segments) is blended into the flashing glass rather
+   painted over it, so it tints with the red instead of standing out as pale outlines. */
+.pill[data-theme="instrument"][data-mode="alm"] :is(.seg-ghost, .gauge i) { mix-blend-mode: multiply; }
+@media (prefers-color-scheme: dark) {
+  .pill[data-theme="instrument"][data-mode="alm"] :is(.seg-ghost, .gauge i) { mix-blend-mode: screen; }
+}
+@keyframes instrument-flash { 50% { background: color-mix(in srgb, var(--red) 28%, var(--surface)); } }
+@keyframes instrument-chase { 0% { background: var(--red); } 10% { background: var(--ghost); } }
 
 /* Keys: play, then the optional settings key, flush like a keypad. */
 .pill[data-theme="instrument"] .keys { display: flex; flex: none; }
@@ -104,5 +120,9 @@
 .pill[data-theme="instrument"] button svg { width: 16px; height: 16px; display: block; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pill[data-theme="instrument"][data-mode="idle"] .colon { animation: none; }
+  .pill[data-theme="instrument"] .colon,
+  .pill[data-theme="instrument"] .annunciator .word,
+  .pill[data-theme="instrument"] .gauge i,
+  .pill[data-theme="instrument"][data-mode="alm"] { animation: none !important; }
+  .pill[data-theme="instrument"][data-mode="alm"] { background: color-mix(in srgb, var(--red) 28%, var(--surface)); }
 }

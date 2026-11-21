@@ -20,7 +20,7 @@ const { createServer } = await import(pathToFileURL(require.resolve("vite")).hre
 const NOW = new Date(2026, 10, 4, 15, 0, 0);
 // Must list every theme in desktop/src/themes/registry.ts; the run fails if it doesn't.
 const PILL_THEMES = ["baseline", "instrument", "ledger"];
-const STATES = ["running-under", "running-near", "running-over", "paused-recent", "paused-long"];
+const STATES = ["running-under", "running-near", "running-over", "paused-recent", "paused-nudge", "paused-long", "paused-alarm", "on-break"];
 const MODES = ["light", "dark"];
 const PILL_HEIGHT = 48;
 const HISTORY = { width: 460, height: 780 }; // must match tauri.conf.json "settings"

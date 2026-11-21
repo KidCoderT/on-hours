@@ -2,9 +2,9 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, touchOpen, type Session } from "../src/lib/db";
+import { endBreak, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
-import { dayRange, holdMs, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
+import { dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
 const H = 3_600_000;
 const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, end_ms: end, open: 0 });
@@ -181,4 +181,59 @@ test("a session resumed after a quick restart keeps running past its first heart
   expect(await recoverOpenSession(relaunch, c)).not.toBeNull();
   expect(await touchOpen(relaunch + 30_000, false, c)).toBe(true); // the first heartbeat after it
   expect(only(db)).toEqual({ start_ms: 0, end_ms: relaunch + 30_000, open: 1 });
+});
+
+test("pause stages: short, nudge at 5 min, long at the setting, alarm at 1.5 times it", () => {
+  const M = 60_000;
+  const s = { nudgeMs: 5 * M, longPauseMs: 20 * M, alarmFactor: 1.5 };
+  const p = { running: false, done: false, pausedMs: 0, onBreak: false, sinceBreakMs: null };
+  const at = (min: number, done = false) => pauseLevel({ ...p, done, pausedMs: min * M }, s);
+  expect(pauseLevel({ ...p, running: true }, s)).toBe("none");
+  expect([at(0), at(4.9), at(5), at(19.9), at(20), at(29.9), at(30)]).toEqual(["short", "short", "nudge", "nudge", "long", "long", "alarm"]);
+  expect(pauseLevel({ ...p, pausedMs: 39 * M }, { ...s, alarmFactor: 2 })).toBe("long"); // "Alarm after" moves it
+  expect(at(90, true)).toBe("short"); // goal met: nothing nags
+  // Long pause set to the 5 min minimum: nudge never shows, long and alarm still come in order.
+  const tight = { nudgeMs: 5 * M, longPauseMs: 5 * M, alarmFactor: 2 };
+  expect(pauseLevel({ ...p, pausedMs: 5 * M }, tight)).toBe("long");
+  expect(pauseLevel({ ...p, pausedMs: 10 * M }, tight)).toBe("alarm");
+  // A break never nags, goal met or not. After it the stages restart from its end, at nudge.
+  expect(pauseLevel({ ...p, pausedMs: 90 * M, onBreak: true }, s)).toBe("break");
+  expect(pauseLevel({ ...p, pausedMs: 46 * M, sinceBreakMs: 1 * M }, s)).toBe("nudge"); // 45 min break, 1 min over
+  expect(pauseLevel({ ...p, pausedMs: 66 * M, sinceBreakMs: 21 * M }, s)).toBe("long");
+  expect(pauseLevel({ ...p, pausedMs: 66 * M, sinceBreakMs: 21 * M, done: true }, s)).toBe("short");
+  // A nudge_min row (a future setting) is read; nonsense falls back to 5.
+  expect(parseSettings({ nudge_min: "8" }).nudgeMs).toBe(8 * M);
+  expect(parseSettings({ nudge_min: "0" }).nudgeMs).toBe(5 * M);
+  expect(parseSettings({ alarm_factor: "2.5" }).alarmFactor).toBe(2.5);
+  expect(["1", "9", "x", ""].map((v) => parseSettings({ alarm_factor: v }).alarmFactor)).toEqual([1.5, 1.5, 1.5, 1.5]);
+});
+
+test("breaks: a new one ends the running one, ending early stamps now, ending none does nothing", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db);
+  const M = 60_000;
+  await startBreak(0, 15 * M, c);
+  await startBreak(5 * M, 30 * M, c); // picked 30 min while on the 15: the first one ends at 5
+  await endBreak(20 * M, c); // back early
+  await endBreak(60 * M, c); // nothing running
+  expect(db.query("SELECT start_ms, end_ms FROM breaks ORDER BY id").all()).toEqual([
+    { start_ms: 0, end_ms: 5 * M },
+    { start_ms: 5 * M, end_ms: 20 * M },
+  ]);
+});
+
+test("PC on: heartbeats extend one stretch; a sleep, shutdown or clock change starts another", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db);
+  for (const t of [0, 30_000, 60_000]) await markAwake(t, c);
+  await markAwake(60_000 + STALE_MS, c); // slept 2 min: new stretch
+  await markAwake(60_000 + STALE_MS + 30_000, c);
+  await markAwake(10_000, c); // clock set back: never stretch backwards
+  expect(db.query("SELECT start_ms, end_ms FROM awake ORDER BY id").all()).toEqual([
+    { start_ms: 0, end_ms: 60_000 },
+    { start_ms: 60_000 + STALE_MS, end_ms: 90_000 + STALE_MS },
+    { start_ms: 10_000, end_ms: 10_000 },
+  ]);
 });

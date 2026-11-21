@@ -6,14 +6,16 @@ import "./pill.css";
 
 /**
  * A Mac panel. The status light is a window traffic light: red paused, yellow working,
- * green goal met. Once the pause is long the red light bounces, then breathes.
+ * green goal met, blue on a planned break (the number counts the break down). Paused, the red
+ * light bounces more and more often
+ * the longer it lasts.
  * Rules: design/DIRECTION_BASELINE.md.
  */
 function Pill({ m }: { m: PillModel }) {
   return (
     <div className="pill" data-theme="baseline" data-running={m.running} data-done={m.done} data-pause={m.pause}>
       <span className="light" aria-hidden="true" />
-      <span className="time" aria-hidden="true">{fmtClock(m.elapsedMs)}</span>
+      <span className="time" aria-hidden="true">{fmtClock(m.pause === "break" ? m.breakLeftMs : m.elapsedMs)}</span>
       <button type="button" className="toggle" onClick={m.toggle} disabled={!m.ready} aria-label={m.running ? "Pause" : "Start"}>
         {m.running ? <PauseIcon /> : <PlayIcon />}
       </button>

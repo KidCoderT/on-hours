@@ -4,6 +4,14 @@ fn quit(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+/// Move and resize a window in one go, so an animated grow doesn't wobble between two IPC calls.
+/// Physical pixels; the pill's alarm grow (pill/useFitWindow.ts) calls it once per frame.
+#[tauri::command]
+fn set_bounds(window: tauri::WebviewWindow, x: i32, y: i32, width: u32, height: u32) -> Result<(), String> {
+    window.set_position(tauri::PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
+    window.set_size(tauri::PhysicalSize::new(width, height)).map_err(|e| e.to_string())
+}
+
 /// The one global hotkey (pause/resume), and the combo currently registered for it.
 #[cfg(desktop)]
 #[derive(Default)]
@@ -171,6 +179,18 @@ fn migrations() -> Vec<tauri_plugin_sql::Migration> {
             sql: include_str!("../migrations/0004_pill_theme.sql"),
             kind: tauri_plugin_sql::MigrationKind::Up,
         },
+        tauri_plugin_sql::Migration {
+            version: 5,
+            description: "breaks",
+            sql: include_str!("../migrations/0005_breaks.sql"),
+            kind: tauri_plugin_sql::MigrationKind::Up,
+        },
+        tauri_plugin_sql::Migration {
+            version: 6,
+            description: "pc on",
+            sql: include_str!("../migrations/0006_awake.sql"),
+            kind: tauri_plugin_sql::MigrationKind::Up,
+        },
     ]
 }
 
@@ -217,7 +237,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![quit, set_hotkey])
+        .invoke_handler(tauri::generate_handler![quit, set_hotkey, set_bounds])
         .setup(|_app| {
             #[cfg(desktop)]
             {

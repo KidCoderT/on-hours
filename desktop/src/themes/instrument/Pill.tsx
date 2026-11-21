@@ -6,22 +6,24 @@ import "./pill.css";
 
 const GAUGE_SEGMENTS = 10;
 
-// RUN: working, under goal. MET: goal reached. HOLD: paused, recently. IDLE: paused too long.
-type Mode = "run" | "met" | "hold" | "idle";
+// RUN: working, under goal. MET: goal reached. HOLD: paused, recently (blinking from the nudge on).
+// IDLE: paused too long. ALM: the alarm. BRK: a planned break, in blue: the digits count it down, the
+// second line keeps today's total.
+type Mode = "run" | "met" | "hold" | "idle" | "alm" | "brk";
 
 /** A hardware readout: seven-segment digits, a progress gauge, and an LCD annunciator. */
 function Pill({ m }: { m: PillModel }) {
-  const mode: Mode = m.done ? "met" : m.running ? "run" : m.pause === "long" ? "idle" : "hold";
+  const mode: Mode = m.pause === "break" ? "brk" : m.done ? "met" : m.running ? "run" : m.pause === "alarm" ? "alm" : m.pause === "long" ? "idle" : "hold";
   // Annunciator second line: the number that matters next.
-  const sub = mode === "met" ? "+" + fmtHMM(m.elapsedMs - m.goalMs) : mode === "run" ? "−" + fmtHMM(m.goalMs - m.elapsedMs) : fmtHMM(m.pausedMs);
+  const sub = mode === "met" ? "+" + fmtHMM(m.elapsedMs - m.goalMs) : mode === "run" ? "−" + fmtHMM(m.goalMs - m.elapsedMs) : mode === "brk" ? fmtHMM(m.elapsedMs) : fmtHMM(m.pausedMs);
   const lit = Math.floor(m.progress * GAUGE_SEGMENTS);
 
   return (
-    <div className="pill" data-theme="instrument" data-mode={mode}>
+    <div className="pill" data-theme="instrument" data-mode={mode} data-pause={m.pause}>
       <span className="readout" aria-hidden="true">
-        <Seg value={fmtClock(m.elapsedMs)} glass="88:88:88" className="pill-digits" />
+        <Seg value={fmtClock(mode === "brk" ? m.breakLeftMs : m.elapsedMs)} glass="88:88:88" className="pill-digits" />
         <span className="gauge">
-          {Array.from({ length: GAUGE_SEGMENTS }, (_, i) => <i key={i} data-on={i < lit} />)}
+          {Array.from({ length: GAUGE_SEGMENTS }, (_, i) => <i key={i} data-on={i < lit} style={{ "--i": i } as React.CSSProperties} />)}
         </span>
       </span>
       <span className="annunciator" aria-hidden="true">

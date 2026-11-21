@@ -6,7 +6,8 @@ import { currentMonitor, getCurrentWindow, PhysicalPosition, Window } from "@tau
 
 /** check: "still there?" (timer running). paused: away long enough to pause. count: back, count it? */
 export type BubbleKind = "check" | "paused" | "count";
-export type BubbleShow = { kind: BubbleKind; title: string; sub?: string; theme: string; below: boolean };
+/** `primary`: the highlighted answer, the one we'd nudge you toward. Yes unless said otherwise. */
+export type BubbleShow = { kind: BubbleKind; title: string; sub?: string; primary?: "yes" | "no"; theme: string; below: boolean };
 export type BubbleAnswer = { kind: BubbleKind; yes: boolean };
 /** drop: answered, falls back toward the pill. quiet: they came back without answering, fades after a beat. */
 export type BubbleHide = { how: "drop" | "quiet" };

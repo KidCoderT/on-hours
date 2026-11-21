@@ -31,6 +31,7 @@ function BubbleWindow() {
   }, []);
 
   if (!bubble) return null;
+  const primary = bubble.primary ?? "yes";
 
   const answer = (yes: boolean) => {
     if (phase !== "in") return;
@@ -52,8 +53,8 @@ function BubbleWindow() {
         {bubble.sub && <p className="bubble-sub">{bubble.sub}</p>}
         {bubble.kind !== "paused" && (
           <div className="bubble-actions">
-            <button type="button" className="bubble-yes" onClick={() => answer(true)}>Yes</button>
-            <button type="button" onClick={() => answer(false)}>No</button>
+            <button type="button" className={primary === "yes" ? "bubble-primary" : undefined} onClick={() => answer(true)}>Yes</button>
+            <button type="button" className={primary === "no" ? "bubble-primary" : undefined} onClick={() => answer(false)}>No</button>
           </div>
         )}
       </div>
@@ -67,7 +68,7 @@ const preview: BubbleShow | null = (() => {
   const q = new URLSearchParams(location.search);
   const kind = (q.get("kind") ?? "check") as BubbleShow["kind"];
   const text = { check: ["Hey, you still there?", "No keyboard or mouse since 14:02."], paused: ["Paused.", "Away since 14:02. I'll ask when you're back."], count: ["Was that 34 min work?", "Away 14:02 – 14:36"] }[kind];
-  return { kind, title: text[0], sub: text[1], theme: q.get("theme") ?? "baseline", below: q.get("below") === "1" };
+  return { kind, title: text[0], sub: text[1], primary: kind === "count" ? "no" : "yes", theme: q.get("theme") ?? "baseline", below: q.get("below") === "1" };
 })();
 
 export default BubbleWindow;

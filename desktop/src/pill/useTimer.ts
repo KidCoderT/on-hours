@@ -227,7 +227,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     if (b.kind === "paused") showBubble({ kind: "paused", title: "Paused.", sub: `Away since ${fmtTime(b.away.end)}. I'll ask when you're back.`, theme }).catch(fail);
     if (b.kind === "count") {
       const mins = Math.max(1, Math.round((Date.now() - b.away.end) / 60_000));
-      showBubble({ kind: "count", title: `Was that ${mins} min work?`, sub: `Away ${fmtTime(b.away.end)} – ${fmtTime(Date.now())}`, theme }).catch(fail);
+      showBubble({ kind: "count", title: `Was that ${mins} min work?`, sub: `Away ${fmtTime(b.away.end)} – ${fmtTime(Date.now())}`, primary: "no", theme }).catch(fail);
     }
   };
 
@@ -290,7 +290,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   useEffect(() => {
     if (!isTauri()) return;
     const win = getCurrentWindow();
-    const follow = () => bubbleRef.current && void placeBubble().catch(() => {});
+    const follow = () => bubbleRef.current && void placeBubble().catch(() => { });
     const offs = [win.listen<BubbleAnswer>(ANSWER, (e) => latest.current.onAnswer(e.payload)), win.onMoved(follow), win.onResized(follow)];
     return () => offs.forEach((off) => off.then((f) => f()));
   }, []);
@@ -298,7 +298,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   // Screenshot harness (scripts/shots): fixed state, nothing to toggle.
   if (fixture) {
     const left = "breakLeftMs" in fixture ? fixture.breakLeftMs : 0;
-    const idle = async () => {};
+    const idle = async () => { };
     return {
       elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs,
       onBreak: left > 0, breakLeftMs: left, sinceBreakMs: null, ready: true, saveFailed: false, toggle: idle, takeBreak: idle, endBreakNow: idle,

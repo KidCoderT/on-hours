@@ -17,8 +17,8 @@
   --muted: #00000080;
   --border: #00000024;
   --fill: #0000000f;
-  --yes: #1d1d1f;
-  --yes-ink: #ffffff;
+  --primary: #1d1d1f;
+  --primary-ink: #ffffff;
   --radius: 14px;
   --rise: 10px; /* how far it rises in from, toward the pill */
   position: relative;
@@ -70,11 +70,11 @@
   cursor: pointer;
 }
 .bubble button:hover { filter: brightness(0.94); }
-.bubble .bubble-yes { background: var(--yes); color: var(--yes-ink); }
+.bubble .bubble-primary { background: var(--primary); color: var(--primary-ink); } /* the highlighted answer */
 
 /* Instrument: the LCD glass, mono type, square keys. */
 .bubble[data-theme="instrument"] {
-  --surface: #e4e7dc; --ink: #1b1d18; --muted: #575b50; --border: #c8ccbe; --fill: #d6dacd; --yes: #b35300; --yes-ink: #fff;
+  --surface: #e4e7dc; --ink: #1b1d18; --muted: #575b50; --border: #c8ccbe; --fill: #d6dacd; --primary: #b35300; --primary-ink: #fff;
   --radius: 4px;
   font-family: "Instrument Mono", ui-monospace, Consolas, monospace;
   font-size: 12.5px;
@@ -84,7 +84,7 @@
 
 /* Ledger: a slip of ruled paper with the red margin rule, in ink. */
 .bubble[data-theme="ledger"] {
-  --surface: #f4f1ea; --ink: #1f1d1a; --muted: #7a746a; --border: #d6d9d2; --fill: #ebe6da; --yes: #1f1d1a; --yes-ink: #f4f1ea;
+  --surface: #f4f1ea; --ink: #1f1d1a; --muted: #7a746a; --border: #d6d9d2; --fill: #ebe6da; --primary: #1f1d1a; --primary-ink: #f4f1ea;
   --radius: 2px;
   padding-left: 22px;
   font-family: "Source Serif 4 Variable", Georgia, serif;
@@ -94,10 +94,10 @@
 .bubble[data-theme="ledger"] button { border-radius: 2px; font-family: inherit; }
 
 @media (prefers-color-scheme: dark) {
-  .bubble { --surface: #2a2a2c; --ink: #ffffffd9; --muted: #ffffff80; --border: #000000a6; --fill: #ffffff17; --yes: #f5f5f7; --yes-ink: #1d1d1f; }
-  .bubble[data-theme="instrument"] { --surface: #0e0e0c; --ink: #d9d6cc; --muted: #8a877d; --border: #2a2a26; --fill: #1f1f1c; --yes: #ffb020; --yes-ink: #0e0e0c; }
+  .bubble { --surface: #2a2a2c; --ink: #ffffffd9; --muted: #ffffff80; --border: #000000a6; --fill: #ffffff17; --primary: #f5f5f7; --primary-ink: #1d1d1f; }
+  .bubble[data-theme="instrument"] { --surface: #0e0e0c; --ink: #d9d6cc; --muted: #8a877d; --border: #2a2a26; --fill: #1f1f1c; --primary: #ffb020; --primary-ink: #0e0e0c; }
   .bubble[data-theme="ledger"] {
-    --surface: #25282c; --ink: #ece6d8; --muted: #9c978c; --border: #3a3f43; --fill: #2e3236; --yes: #ece6d8; --yes-ink: #25282c;
+    --surface: #25282c; --ink: #ece6d8; --muted: #9c978c; --border: #3a3f43; --fill: #2e3236; --primary: #ece6d8; --primary-ink: #25282c;
     background: linear-gradient(90deg, transparent 11px, #7a4a45 11px 12px, transparent 12px 14px, #7a4a45 14px 15px, transparent 15px), var(--surface);
   }
 }

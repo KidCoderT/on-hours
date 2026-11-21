@@ -138,6 +138,37 @@ body, .site-header, .hero-window, .soon-panel, .step-art, .window-frame, .histor
 .idea-credit { max-width: 620px; padding: 4px 0 4px 18px; border-left: 2px solid var(--edge); font-size: 15px; line-height: 24px; color: var(--muted); }
 .idea-list + div { margin-top: 8px; padding-top: 40px; border-top: 1px solid var(--edge); }
 
+/* ---- Nag: the pause stages side by side, then a working break menu ---- */
+.nag-ladder { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 48px; }
+.nag-stage { display: flex; flex-direction: column; padding: 20px; border: 1px solid var(--edge); border-radius: 18px; background: var(--surface); }
+.nag-pill { --s: 0.84; display: grid; place-items: center; min-height: 112px; margin-bottom: 14px; }
+.nag-when { align-self: flex-start; padding: 2px 10px; border: 1px solid var(--edge); border-radius: 999px; font-size: 12px; line-height: 18px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.nag-stage:is([data-stage="long"], [data-stage="alarm"]) .nag-when { border-color: var(--light-red); color: var(--red); }
+.nag-stage h3 { margin-top: 12px; font-size: 18px; line-height: 26px; font-weight: 620; letter-spacing: -0.015em; }
+.nag-stage p { margin-top: 4px; font-size: 15px; line-height: 23px; color: var(--muted); }
+/* The app grows the window and shakes it; here the pill does it in place, every few seconds. */
+.nag-stage .demo-pill[data-pause="alarm"] { animation: nag-alarm 3s var(--ease) infinite; }
+@keyframes nag-alarm {
+  0%, 14%, 100% { transform: scale(1.08); }
+  2% { transform: scale(1.08) translateX(6px); } 4% { transform: scale(1.08) translateX(-6px); }
+  6% { transform: scale(1.08) translateX(4px); } 8% { transform: scale(1.08) translateX(-4px); }
+  10% { transform: scale(1.08) translateX(2px); } 12% { transform: scale(1.08) translateX(-2px); }
+}
+.nag-note { margin-top: 20px; font-size: 15px; line-height: 24px; color: var(--muted); }
+
+.break-layout { display: grid; grid-template-columns: 5fr 6fr; align-items: center; gap: 72px; margin-top: 88px; padding-top: 56px; border-top: 1px solid var(--edge); }
+.break-copy h3 { font-size: clamp(22px, 2.6vw, 28px); line-height: 1.2; font-weight: 620; letter-spacing: -0.02em; }
+.break-copy p { max-width: 460px; margin-top: 10px; color: var(--muted); }
+.break-copy .break-try { color: var(--ink); font-weight: 600; }
+.break-demo { display: flex; align-items: center; justify-content: center; gap: 28px; min-height: 230px; padding: 28px; border: 1px solid var(--edge); border-radius: 18px; background: var(--surface); }
+.pill-menu { display: flex; flex-direction: column; flex: none; width: 196px; padding: 5px; border: 1px solid var(--edge); border-radius: 10px; background: var(--page); box-shadow: var(--shadow); font-size: 13px; line-height: 20px; }
+.pill-menu button, .pill-menu span { padding: 6px 12px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: inherit; text-align: left; }
+.pill-menu button { cursor: pointer; }
+.pill-menu button:hover { background: var(--hover); }
+.pill-menu span { color: var(--muted); }
+.pill-menu hr { margin: 5px 0; border: 0; border-top: 1px solid var(--edge); }
+.break-pill { --s: 1.15; }
+
 /* ---- Styles: the stage takes each style's own paper and type ---- */
 .styles-stage { display: flex; flex-direction: column; align-items: center; min-height: 400px; margin-top: 48px; padding: 24px; border: 1px solid var(--edge); border-radius: 20px; background: var(--surface); color: var(--ink); transition: background-color 0.45s var(--ease), border-color 0.45s var(--ease), color 0.45s; }
 .styles-stage[data-style="instrument"] { --surface: #e4e7dc; --ink: #1b1d18; --muted: #575b50; --edge: #c8ccbe; --hover: #d6dacd; --icon: #3a3d33; }
@@ -250,9 +281,13 @@ body, .site-header, .hero-window, .soon-panel, .step-art, .window-frame, .histor
 .site-footer-meta { font-variant-numeric: tabular-nums; }
 
 /* ---- Smaller screens ---- */
+@media (max-width: 1080px) {
+  .nag-ladder { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nag-pill { --s: 1.05; }
+}
 @media (max-width: 900px) {
   .section { padding-top: 96px; }
-  .week-layout, .settings-layout, .step { grid-template-columns: 1fr; gap: 36px; }
+  .week-layout, .settings-layout, .step, .break-layout { grid-template-columns: 1fr; gap: 36px; }
   .settings-shot { max-width: 450px; }
   .soon-grid { grid-template-columns: 1fr; }
   .free { padding-bottom: 96px; }
@@ -280,15 +315,19 @@ body, .site-header, .hero-window, .soon-panel, .step-art, .window-frame, .histor
   .idea-pill { --s: 1; }
   .styles-pill-spot { --s: 0.92; min-height: 180px; }
   .segmented span { padding: 0 7px; font-size: 12px; }
+  .styles-controls .segmented { flex-wrap: wrap; justify-content: center; } /* seven states: wrap, don't hide the last ones */
   .history.app-panel { padding: 16px; }
   .step-art { padding: 20px; }
   .step-art-pair { grid-template-columns: 1fr; }
   .soon-panel { padding: 20px; }
+  .nag-ladder { grid-template-columns: 1fr; }
+  .break-demo { flex-direction: column; padding: 20px; }
+  .break-pill { --s: 1; }
   .soon-board li { grid-template-columns: 18px 80px 1fr auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .smartscreen [data-pick="true"]::after, .soon-ring { animation: none; }
+  .smartscreen [data-pick="true"]::after, .soon-ring, .nag-stage .demo-pill[data-pause="alarm"] { animation: none; }
   .btn, .styles-stage, .mode-sun, .mode-moon, body, .site-header, .hero-window, .soon-panel, .step-art, .window-frame, .history.app-panel { transition: none; }
 }
 

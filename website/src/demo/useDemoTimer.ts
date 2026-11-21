@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { pauseLevel } from "@app/lib/time";
 import type { PillModel } from "@app/themes/types";
 
 export const HOUR = 3_600_000;
 const MIN = 60_000;
 
-export type DemoState = { elapsedMs: number; running: boolean; pausedMs: number };
+/** breakLeftMs > 0: on a planned break. afterBreak: the break ran out, so the pause nags from the nudge on. */
+export type DemoState = { elapsedMs: number; running: boolean; pausedMs: number; breakLeftMs?: number; afterBreak?: boolean };
 
 type Options = {
   goalMs?: number;
@@ -16,7 +18,8 @@ type Options = {
 
 /**
  * A timer that lives in the browser and speaks the app's PillModel, so the site can render the
- * app's own pill components. Play and pause work; nothing is saved.
+ * app's own pill components. Play, pause and breaks work, with the app's own pause stages
+ * (lib/time.ts pauseLevel); nothing is saved.
  */
 export function useDemoTimer(initial: DemoState, { goalMs = 4 * HOUR, longPauseMs = 20 * MIN, showSettingsButton = true, active = true }: Options = {}) {
   const [state, setState] = useState(initial);
@@ -29,25 +32,37 @@ export function useDemoTimer(initial: DemoState, { goalMs = 4 * HOUR, longPauseM
       const now = performance.now();
       const dt = now - last.current;
       last.current = now;
-      setState((s) => (s.running ? { ...s, elapsedMs: s.elapsedMs + dt } : { ...s, pausedMs: s.pausedMs + dt }));
+      setState((s) => {
+        if (s.running) return { ...s, elapsedMs: s.elapsedMs + dt };
+        const left = s.breakLeftMs ?? 0;
+        if (left > 0 && left <= dt) return { ...s, breakLeftMs: 0, pausedMs: 0, afterBreak: true }; // the break ran out
+        return { ...s, breakLeftMs: Math.max(0, left - dt), pausedMs: s.pausedMs + dt };
+      });
     }, 250);
     return () => clearInterval(id);
   }, [active]);
 
-  const toggle = () => setState((s) => ({ ...s, running: !s.running, pausedMs: 0 }));
-  const { elapsedMs, running, pausedMs } = state;
+  const toggle = () => setState((s) => ({ ...s, running: !s.running, pausedMs: 0, breakLeftMs: 0, afterBreak: false }));
+  const takeBreak = (ms: number) => setState((s) => ({ ...s, running: false, pausedMs: 0, breakLeftMs: ms, afterBreak: false }));
+  const { elapsedMs, running, pausedMs, breakLeftMs = 0, afterBreak = false } = state;
+  const done = elapsedMs >= goalMs;
+  const onBreak = !running && breakLeftMs > 0;
   const model: PillModel = {
     elapsedMs,
     goalMs,
     progress: Math.min(1, elapsedMs / goalMs),
     running,
-    done: elapsedMs >= goalMs,
+    done,
     pausedMs,
-    pause: running ? "none" : pausedMs >= longPauseMs ? "long" : "short",
+    breakLeftMs: onBreak ? Math.ceil(breakLeftMs / 1000) * 1000 : 0,
+    pause: pauseLevel(
+      { running, done, pausedMs, onBreak, sinceBreakMs: afterBreak ? pausedMs : null },
+      { nudgeMs: 5 * MIN, longPauseMs, alarmFactor: 1.5 },
+    ),
     ready: true,
     showSettingsButton,
     toggle,
     openSettings: () => document.getElementById("settings")?.scrollIntoView({ behavior: "smooth" }),
   };
-  return { model, set: setState, toggle };
+  return { model, set: setState, toggle, takeBreak };
 }

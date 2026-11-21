@@ -6,6 +6,7 @@ import { Footer } from "./sections/Footer";
 import { Header } from "./sections/Header";
 import { Hero } from "./sections/Hero";
 import { Idea } from "./sections/Idea";
+import { Nag } from "./sections/Nag";
 import { Settings } from "./sections/Settings";
 import { Styles } from "./sections/Styles";
 import { Week } from "./sections/Week";
@@ -19,6 +20,7 @@ function App() {
       <main>
         <Hero release={release} />
         <Idea />
+        <Nag />
         <Styles />
         <Week />
         <Settings />

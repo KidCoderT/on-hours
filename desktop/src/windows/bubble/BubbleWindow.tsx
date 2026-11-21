@@ -66,7 +66,7 @@ const preview: BubbleShow | null = (() => {
   if (isTauri()) return null;
   const q = new URLSearchParams(location.search);
   const kind = (q.get("kind") ?? "check") as BubbleShow["kind"];
-  const text = { check: ["Hey, you still there?"], paused: ["Paused.", "Away since 14:02. I'll ask when you're back."], count: ["Was that 34 min work?", "Away 14:02 – 14:36"] }[kind];
+  const text = { check: ["Hey, you still there?", "No keyboard or mouse since 14:02."], paused: ["Paused.", "Away since 14:02. I'll ask when you're back."], count: ["Was that 34 min work?", "Away 14:02 – 14:36"] }[kind];
   return { kind, title: text[0], sub: text[1], theme: q.get("theme") ?? "baseline", below: q.get("below") === "1" };
 })();
 

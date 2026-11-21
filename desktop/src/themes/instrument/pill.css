@@ -22,6 +22,7 @@
   --green: #137a3a;
   --dim: #7f8477;
   --red: #c42b1f;
+  --blue: #1f5fbf; /* a break: Baseline's blue light, as a lit segment */
   --lit: var(--amber);
 
   display: flex;
@@ -52,10 +53,12 @@
     --green: #5be38c;
     --dim: #6e6b62;
     --red: #ff4a3d;
+    --blue: #4ea4ff;
   }
 }
 .pill[data-theme="instrument"][data-mode="met"] { --lit: var(--green); }
-.pill[data-theme="instrument"]:is([data-mode="hold"], [data-mode="brk"]) { --lit: var(--dim); }
+.pill[data-theme="instrument"][data-mode="hold"] { --lit: var(--dim); }
+.pill[data-theme="instrument"][data-mode="brk"] { --lit: var(--blue); }
 .pill[data-theme="instrument"]:is([data-mode="idle"], [data-mode="alm"]) { --lit: var(--red); }
 
 /* Seven-segment readout: unlit "8"s sit behind the lit digits, like real glass. */

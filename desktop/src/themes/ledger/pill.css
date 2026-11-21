@@ -9,6 +9,7 @@
   --hover: #ece7dc;
   --pressed: #e3ddd0;
   --red: #a8322a;
+  --blue: #2c4f8c;    /* blue-black ink: a break */
   --green: #2f6b4a;
   --entry: var(--ink);
 
@@ -39,11 +40,13 @@
     --hover: #2e3236;
     --pressed: #363a3f;
     --red: #e3806f;
+    --blue: #8fb3ea;
     --green: #86be98;
   }
 }
 .pill[data-theme="ledger"][data-entry="pencil"] { --entry: var(--muted); }
 .pill[data-theme="ledger"][data-entry="idle"] { --entry: var(--red); }
+.pill[data-theme="ledger"][data-entry="rest"] { --entry: var(--blue); }
 .pill[data-theme="ledger"][data-entry="kept"] { --entry: var(--green); }
 
 /* A printer's diamond: filled while running, hollow while paused. */

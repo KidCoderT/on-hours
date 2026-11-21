@@ -1,0 +1,115 @@
+/* The away bubble, dressed like the pill's theme. The window is transparent and a little larger than
+   the bubble, so the tail and the shadow have room. Above the pill it hangs from the bottom edge;
+   below the pill (no room above) it sits at the top edge and the tail points up. */
+.bubble-stage {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  height: 100vh;
+  padding: 10px 10px 14px;
+}
+.bubble-stage[data-below="true"] { justify-content: flex-start; padding: 14px 10px 10px; }
+
+.bubble {
+  --surface: #f6f6f6;
+  --ink: #000000d9;
+  --muted: #00000080;
+  --border: #00000024;
+  --fill: #0000000f;
+  --yes: #1d1d1f;
+  --yes-ink: #ffffff;
+  --radius: 14px;
+  --rise: 10px; /* how far it rises in from, toward the pill */
+  position: relative;
+  width: 100%;
+  padding: 13px 14px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 19px;
+  filter: drop-shadow(0 6px 14px #00000026);
+  user-select: none;
+  cursor: default;
+  animation: bubble-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.bubble-stage[data-below="true"] .bubble { --rise: -10px; }
+
+/* The tail, pointing at the pill's play button. */
+.bubble::after {
+  content: "";
+  position: absolute;
+  right: 40px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+.bubble-stage[data-below="true"] .bubble::after { bottom: auto; top: -6px; transform: rotate(225deg); }
+
+.bubble-title { margin: 0; font-weight: 600; }
+.bubble-sub { margin: 2px 0 0; font-size: 12px; line-height: 16px; color: var(--muted); }
+.bubble-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+.bubble button {
+  appearance: none;
+  min-width: 56px;
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.bubble button:hover { filter: brightness(0.94); }
+.bubble .bubble-yes { background: var(--yes); color: var(--yes-ink); }
+
+/* Instrument: the LCD glass, mono type, square keys. */
+.bubble[data-theme="instrument"] {
+  --surface: #e4e7dc; --ink: #1b1d18; --muted: #575b50; --border: #c8ccbe; --fill: #d6dacd; --yes: #b35300; --yes-ink: #fff;
+  --radius: 4px;
+  font-family: "Instrument Mono", ui-monospace, Consolas, monospace;
+  font-size: 12.5px;
+}
+.bubble[data-theme="instrument"] .bubble-title { text-transform: uppercase; letter-spacing: 0.06em; }
+.bubble[data-theme="instrument"] button { border-radius: 2px; text-transform: uppercase; letter-spacing: 0.06em; font-size: 11.5px; }
+
+/* Ledger: a slip of ruled paper with the red margin rule, in ink. */
+.bubble[data-theme="ledger"] {
+  --surface: #f4f1ea; --ink: #1f1d1a; --muted: #7a746a; --border: #d6d9d2; --fill: #ebe6da; --yes: #1f1d1a; --yes-ink: #f4f1ea;
+  --radius: 2px;
+  padding-left: 22px;
+  font-family: "Source Serif 4 Variable", Georgia, serif;
+  font-size: 15px;
+  background: linear-gradient(90deg, transparent 11px, #d9a097 11px 12px, transparent 12px 14px, #d9a097 14px 15px, transparent 15px), var(--surface);
+}
+.bubble[data-theme="ledger"] button { border-radius: 2px; font-family: inherit; }
+
+@media (prefers-color-scheme: dark) {
+  .bubble { --surface: #2a2a2c; --ink: #ffffffd9; --muted: #ffffff80; --border: #000000a6; --fill: #ffffff17; --yes: #f5f5f7; --yes-ink: #1d1d1f; }
+  .bubble[data-theme="instrument"] { --surface: #0e0e0c; --ink: #d9d6cc; --muted: #8a877d; --border: #2a2a26; --fill: #1f1f1c; --yes: #ffb020; --yes-ink: #0e0e0c; }
+  .bubble[data-theme="ledger"] {
+    --surface: #25282c; --ink: #ece6d8; --muted: #9c978c; --border: #3a3f43; --fill: #2e3236; --yes: #ece6d8; --yes-ink: #25282c;
+    background: linear-gradient(90deg, transparent 11px, #7a4a45 11px 12px, transparent 12px 14px, #7a4a45 14px 15px, transparent 15px), var(--surface);
+  }
+}
+
+/* In: fade up from the pill. Answered: fall back toward the pill. Ignored: a beat, then a slow fade. */
+@keyframes bubble-in { from { opacity: 0; transform: translateY(var(--rise)) scale(0.98); } }
+.bubble[data-phase="drop"] { animation: bubble-drop 0.22s cubic-bezier(0.4, 0, 1, 1) forwards; }
+@keyframes bubble-drop { to { opacity: 0; transform: translateY(calc(var(--rise) * 1.4)) scale(0.97); } }
+.bubble[data-phase="quiet"] { animation: bubble-quiet 0.7s ease 1s forwards; }
+@keyframes bubble-quiet { to { opacity: 0; transform: scale(0.98); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble { animation-duration: 0.01s !important; }
+}

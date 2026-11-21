@@ -34,6 +34,23 @@
         "maximizable": false,
         "center": true,
         "visible": false
+      },
+      {
+        "label": "bubble",
+        "title": "On Hours",
+        "width": 272,
+        "height": 124,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": false,
+        "focusable": false
       }
     ],
     "security": {

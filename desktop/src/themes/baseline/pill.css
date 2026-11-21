@@ -13,6 +13,7 @@
   --red: #ff5f57;    --red-rim: #e0443e;
   --yellow: #febc2e; --yellow-rim: #dea123;
   --green: #28c840;  --green-rim: #1aab29;
+  --alert: #d70015; /* the number once the pause is long: system red, readable on the panel */
   --light: var(--red);
   --rim: var(--red-rim);
   display: flex;
@@ -40,6 +41,7 @@
     --fill-hover: #ffffff26;
     --fill-pressed: #ffffff38;
     --accent: #0a84ff;
+    --alert: #ff6961;
   }
 }
 
@@ -57,12 +59,14 @@
   background: var(--light);
   box-shadow: inset 0 0 0 0.5px var(--rim);
 }
-/* Long pause: the light bounces twice like a Dock icon asking for attention, then breathes like
-   a sleeping Mac's power light until work resumes. */
-.pill[data-theme="baseline"]:is([data-pause="long"], [data-pause="alarm"])[data-done="false"] .light {
-  animation: baseline-bounce 1.1s cubic-bezier(0.3, 0, 0.3, 1) 1;
-}
-.pill[data-theme="baseline"]:is([data-pause="long"], [data-pause="alarm"])[data-done="false"] .light::after {
+/* The longer the pause, the harder the light asks, like a Dock icon that wants you back.
+   Bursts, not a steady loop: a constant animation is soon ignored.
+   Nudge: a double bounce every 20s. Long: every 5s, the number turns red, and the light breathes
+   like a sleeping Mac's. Alarm: it bounces nonstop and the whole panel pulses red. */
+.pill[data-theme="baseline"][data-pause="nudge"] .light { animation: baseline-bounce-20s 20s cubic-bezier(0.3, 0, 0.3, 1) infinite; }
+.pill[data-theme="baseline"][data-pause="long"] .light { animation: baseline-bounce-5s 5s cubic-bezier(0.3, 0, 0.3, 1) infinite; }
+.pill[data-theme="baseline"][data-pause="alarm"] .light { animation: baseline-bounce 1.1s cubic-bezier(0.3, 0, 0.3, 1) infinite; }
+.pill[data-theme="baseline"]:is([data-pause="long"], [data-pause="alarm"]) .light::after {
   content: "";
   position: absolute;
   inset: -4px;
@@ -71,14 +75,30 @@
   opacity: 0;
   animation: baseline-breathe 5s ease-in-out 1.1s infinite;
 }
+.pill[data-theme="baseline"]:is([data-pause="long"], [data-pause="alarm"]) .time { color: var(--alert); }
+.pill[data-theme="baseline"][data-pause="alarm"] { animation: baseline-alarm 1.1s ease-in-out infinite alternate; }
 @keyframes baseline-bounce {
   0%, 50%, 100% { transform: translateY(0); }
   25% { transform: translateY(-9px); }
   75% { transform: translateY(-5px); }
 }
+/* The same 1.1s double bounce at the start of a longer cycle. */
+@keyframes baseline-bounce-20s {
+  0%, 2.75%, 5.5%, 100% { transform: translateY(0); }
+  1.375% { transform: translateY(-9px); }
+  4.125% { transform: translateY(-5px); }
+}
+@keyframes baseline-bounce-5s {
+  0%, 11%, 22%, 100% { transform: translateY(0); }
+  5.5% { transform: translateY(-9px); }
+  16.5% { transform: translateY(-5px); }
+}
 @keyframes baseline-breathe {
   0%, 100% { opacity: 0; transform: scale(0.7); }
   45% { opacity: 0.3; transform: scale(1.15); }
+}
+@keyframes baseline-alarm {
+  to { background: color-mix(in srgb, var(--red) 24%, var(--surface)); }
 }
 
 .pill[data-theme="baseline"] .time {
@@ -119,7 +139,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pill[data-theme="baseline"] .light,
-  .pill[data-theme="baseline"] .light::after { animation: none !important; }
+  .pill[data-theme="baseline"] .light::after,
+  .pill[data-theme="baseline"][data-pause="alarm"] { animation: none !important; }
+  .pill[data-theme="baseline"][data-pause="alarm"] { background: color-mix(in srgb, var(--red) 24%, var(--surface)); }
   .pill[data-theme="baseline"] .time,
   .pill[data-theme="baseline"] button { transition: none; }
 }

@@ -84,6 +84,12 @@
 /* Alarm: the glass flashes red like an alarm clock and one lit segment races along the gauge. */
 .pill[data-theme="instrument"][data-mode="alm"] { animation: instrument-flash 1s steps(1, end) infinite; }
 .pill[data-theme="instrument"][data-mode="alm"] .gauge i { animation: instrument-chase 1s steps(1, end) infinite; animation-delay: calc(var(--i) * 0.1s); }
+/* The unlit glass (ghost digits, dark gauge segments) is blended into the flashing glass rather
+   painted over it, so it tints with the red instead of standing out as pale outlines. */
+.pill[data-theme="instrument"][data-mode="alm"] :is(.seg-ghost, .gauge i) { mix-blend-mode: multiply; }
+@media (prefers-color-scheme: dark) {
+  .pill[data-theme="instrument"][data-mode="alm"] :is(.seg-ghost, .gauge i) { mix-blend-mode: screen; }
+}
 @keyframes instrument-flash { 50% { background: color-mix(in srgb, var(--red) 28%, var(--surface)); } }
 @keyframes instrument-chase { 0% { background: var(--red); } 10% { background: var(--ghost); } }
 

@@ -2,7 +2,7 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, touchOpen, type Session } from "../src/lib/db";
+import { endBreak, MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
 import { dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
@@ -197,4 +197,19 @@ test("pause stages: short, nudge at 5 min, long at the setting, alarm at twice i
   // A nudge_min row (a future setting) is read; nonsense falls back to 5.
   expect(parseSettings({ nudge_min: "8" }).nudgeMs).toBe(8 * M);
   expect(parseSettings({ nudge_min: "0" }).nudgeMs).toBe(5 * M);
+});
+
+test("breaks: a new one ends the running one, ending early stamps now, ending none does nothing", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db);
+  const M = 60_000;
+  await startBreak(0, 15 * M, c);
+  await startBreak(5 * M, 30 * M, c); // picked 30 min while on the 15: the first one ends at 5
+  await endBreak(20 * M, c); // back early
+  await endBreak(60 * M, c); // nothing running
+  expect(db.query("SELECT start_ms, end_ms FROM breaks ORDER BY id").all()).toEqual([
+    { start_ms: 0, end_ms: 5 * M },
+    { start_ms: 5 * M, end_ms: 20 * M },
+  ]);
 });

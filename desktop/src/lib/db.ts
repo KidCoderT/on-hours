@@ -88,6 +88,28 @@ export async function recoverOpenSession(now = Date.now(), conn: Pick<Database, 
   return null;
 }
 
+/* ---------- breaks ---------- */
+
+export type Break = { id: number; start_ms: number; end_ms: number };
+
+/** The most recent break, running or over: the pill counts a running one down, and nags right after one. */
+export const lastBreak = async (conn: Pick<Database, "select"> = db) =>
+  (await conn.select<Break[]>("SELECT * FROM breaks ORDER BY start_ms DESC LIMIT 1"))[0] ?? null;
+
+/** Breaks overlapping [from, to), oldest first. */
+export const breaksBetween = (from: number, to: number) =>
+  db.select<Break[]>("SELECT * FROM breaks WHERE end_ms > $1 AND start_ms < $2 ORDER BY start_ms", [from, to]);
+
+/** Cut a running break short at `now`. Does nothing when no break is running. */
+export const endBreak = (now = Date.now(), conn: Conn = db) =>
+  conn.execute("UPDATE breaks SET end_ms = $1 WHERE start_ms <= $1 AND end_ms > $1", [now]);
+
+/** Start a break of `ms`. A break already running ends here, so breaks never overlap. */
+export async function startBreak(now: number, ms: number, conn: Conn = db) {
+  await endBreak(now, conn);
+  await conn.execute("INSERT INTO breaks (start_ms, end_ms) VALUES ($1, $2)", [now, now + ms]);
+}
+
 /* ---------- settings ---------- */
 
 export async function getSettings(): Promise<Settings> {

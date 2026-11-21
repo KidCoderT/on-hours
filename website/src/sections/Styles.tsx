@@ -9,8 +9,11 @@ import { Segmented } from "../ui/Segmented";
 const MIN = 60_000;
 const STATES = {
   working: { label: "Working", state: { elapsedMs: HOUR + 12 * MIN + 36_000, running: true, pausedMs: 0 } },
-  paused: { label: "Paused", state: { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 4 * MIN } },
-  long: { label: "Long pause", state: { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 2 * HOUR + 50 * MIN } },
+  paused: { label: "Paused", state: { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 2 * MIN } },
+  nudge: { label: "Nudge", state: { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 8 * MIN } },
+  long: { label: "Long pause", state: { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 24 * MIN } },
+  alarm: { label: "Alarm", state: { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 45 * MIN } },
+  break: { label: "Break", state: { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 0, breakLeftMs: 9 * MIN + 59_000 } },
   met: { label: "Goal met", state: { elapsedMs: 4 * HOUR + 37 * MIN + 12_000, running: true, pausedMs: 0 } },
 } satisfies Record<string, { label: string; state: DemoState }>;
 type StateId = keyof typeof STATES;

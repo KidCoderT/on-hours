@@ -315,6 +315,7 @@ body, .site-header, .hero-window, .soon-panel, .step-art, .window-frame, .histor
   .idea-pill { --s: 1; }
   .styles-pill-spot { --s: 0.92; min-height: 180px; }
   .segmented span { padding: 0 7px; font-size: 12px; }
+  .styles-controls .segmented { flex-wrap: wrap; justify-content: center; } /* seven states: wrap, don't hide the last ones */
   .history.app-panel { padding: 16px; }
   .step-art { padding: 20px; }
   .step-art-pair { grid-template-columns: 1fr; }

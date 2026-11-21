@@ -10,6 +10,7 @@ import { quitApp } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import { pillWidth, THEMES, themeById } from "../themes/registry";
 import type { PillModel } from "../themes/types";
+import { useAlarm } from "./useAlarm";
 import { useAutoUpdate } from "./useAutoUpdate";
 import { useFitWindow } from "./useFitWindow";
 import { useTimer } from "./useTimer";
@@ -23,6 +24,9 @@ async function openSettings() {
 
 /** The right-click menu's break lengths, in minutes. */
 const BREAKS = [10, 15, 30];
+
+/** How much bigger the alarm makes the pill. */
+const ALARM_ZOOM = 1.5;
 
 /** Shown (ring + tooltip + spoken) after a session write fails, until the next one succeeds. */
 const SAVE_FAILED = "Couldn't save your time. Try again.";
@@ -48,7 +52,6 @@ function PillWindow() {
   // In the app, wait for the saved settings so the pill never flashes the default theme first.
   const settled = loaded || !isTauri();
   useWindowPosition();
-  useFitWindow(width, loaded);
   // Updates restart the app: wait for a long pause, not a quick break.
   useAutoUpdate(!running && pausedMs >= settings.longPauseMs);
 
@@ -83,6 +86,12 @@ function PillWindow() {
     toggle: () => void toggle(),
     openSettings: () => void openSettings().catch((e) => console.error("could not open settings", e)),
   };
+
+  // The alarm stage: the pill grows, shakes and flashes its taskbar button. App only: in the
+  // screenshot harness the window can't grow, so the pill is drawn at its normal size.
+  const alarm = m.pause === "alarm" && isTauri();
+  useFitWindow(width, loaded, alarm ? ALARM_ZOOM : 1);
+  useAlarm(alarm);
 
   // The tray's "Start / Pause". A ref, so the listener always calls the current toggle.
   const latest = useRef(m);
@@ -124,6 +133,7 @@ function PillWindow() {
     <div
       className="pill-shell" data-tauri-drag-region="deep" onContextMenu={onContextMenu}
       data-error={saveFailed || undefined} title={saveFailed ? SAVE_FAILED : undefined}
+      style={alarm ? { zoom: ALARM_ZOOM } : undefined}
     >
       {/* Not a live region: it changes every second and would read the clock aloud nonstop. */}
       <span className="sr-only">{saveFailed && `${SAVE_FAILED} `}{spokenStatus(m)}</span>

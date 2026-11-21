@@ -1,3 +1,5 @@
+mod away;
+
 // Settings' Quit button. The tray menu quits directly.
 #[tauri::command]
 fn quit(app: tauri::AppHandle) {
@@ -237,7 +239,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![quit, set_hotkey, set_bounds])
+        .invoke_handler(tauri::generate_handler![quit, set_hotkey, set_bounds, away::away])
         .setup(|_app| {
             #[cfg(desktop)]
             {

@@ -40,3 +40,19 @@ export const holdMs = (now: number, lastPause: number | null, dayFrom: number, l
 /** Time worked inside [from, to): sessions crossing the edges are trimmed, never split. */
 export const trimmedTotal = (sessions: Span[], from: number, to: number) =>
   sessions.reduce((sum, s) => sum + Math.max(0, Math.min(s.end_ms, to) - Math.max(s.start_ms, from)), 0);
+
+/** How hard a paused pill nags. "none" while running. */
+export type PauseLevel = "none" | "short" | "nudge" | "long" | "alarm";
+
+/**
+ * The pause stages: short, then nudge (5 min by default), long ("Long pause after"), and alarm at
+ * twice the long pause. Once today's goal is met nothing nags: the pause stays short.
+ */
+export function pauseLevel(p: { running: boolean; done: boolean; pausedMs: number }, s: { nudgeMs: number; longPauseMs: number }): PauseLevel {
+  if (p.running) return "none";
+  if (p.done) return "short";
+  if (p.pausedMs >= 2 * s.longPauseMs) return "alarm";
+  if (p.pausedMs >= s.longPauseMs) return "long";
+  if (p.pausedMs >= s.nudgeMs) return "nudge";
+  return "short";
+}

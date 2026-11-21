@@ -11,7 +11,7 @@ type Mode = "run" | "met" | "hold" | "idle";
 
 /** A hardware readout: seven-segment digits, a progress gauge, and an LCD annunciator. */
 function Pill({ m }: { m: PillModel }) {
-  const mode: Mode = m.done ? "met" : m.running ? "run" : m.pause === "long" ? "idle" : "hold";
+  const mode: Mode = m.done ? "met" : m.running ? "run" : m.pause === "long" || m.pause === "alarm" ? "idle" : "hold";
   // Annunciator second line: the number that matters next.
   const sub = mode === "met" ? "+" + fmtHMM(m.elapsedMs - m.goalMs) : mode === "run" ? "−" + fmtHMM(m.goalMs - m.elapsedMs) : fmtHMM(m.pausedMs);
   const lit = Math.floor(m.progress * GAUGE_SEGMENTS);

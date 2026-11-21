@@ -59,10 +59,10 @@
 }
 /* Long pause: the light bounces twice like a Dock icon asking for attention, then breathes like
    a sleeping Mac's power light until work resumes. */
-.pill[data-theme="baseline"][data-pause="long"][data-done="false"] .light {
+.pill[data-theme="baseline"]:is([data-pause="long"], [data-pause="alarm"])[data-done="false"] .light {
   animation: baseline-bounce 1.1s cubic-bezier(0.3, 0, 0.3, 1) 1;
 }
-.pill[data-theme="baseline"][data-pause="long"][data-done="false"] .light::after {
+.pill[data-theme="baseline"]:is([data-pause="long"], [data-pause="alarm"])[data-done="false"] .light::after {
   content: "";
   position: absolute;
   inset: -4px;

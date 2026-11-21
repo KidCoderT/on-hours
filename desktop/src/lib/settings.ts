@@ -12,6 +12,7 @@ export type Settings = {
   pillTheme: string;
   pillSettingsButton: boolean;
   longPauseMs: number;
+  nudgeMs: number;
   hotkey: string;
 };
 
@@ -23,6 +24,7 @@ export type SettingKey =
   | "pill_theme"
   | "pill_settings_button"
   | "long_pause_min"
+  | "nudge_min"
   | "hotkey";
 
 const MIN = 60_000;
@@ -35,11 +37,19 @@ export const DEFAULT_SETTINGS: Settings = {
   pillTheme: "baseline",
   pillSettingsButton: true,
   longPauseMs: 20 * MIN,
+  nudgeMs: 5 * MIN,
   hotkey: "Ctrl+Alt+Shift+O",
 };
 
 /** Accepted range for the long-pause threshold, in minutes. */
 export const LONG_PAUSE_MIN = { min: 5, max: 240 };
+
+/**
+ * When a pause starts to nudge, in minutes. No Settings row yet: a missing `nudge_min` row means
+ * the default. To make it a setting, add a row to DailyRhythm (SettingsWindow.tsx) that saves
+ * `nudge_min`, like "Long pause after".
+ */
+export const NUDGE_MIN = { min: 1, max: 240 };
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -63,6 +73,7 @@ export function parseSettings(rows: Record<string, string | undefined>): Setting
     pillTheme: rows.pill_theme?.trim() || d.pillTheme,
     pillSettingsButton: rows.pill_settings_button !== "0",
     longPauseMs: int(rows.long_pause_min, LONG_PAUSE_MIN.min, LONG_PAUSE_MIN.max, d.longPauseMs / MIN) * MIN,
+    nudgeMs: int(rows.nudge_min, NUDGE_MIN.min, NUDGE_MIN.max, d.nudgeMs / MIN) * MIN,
     hotkey: rows.hotkey === undefined ? d.hotkey : rows.hotkey.trim(), // a saved "" means the user turned it off
   };
 }

@@ -9,7 +9,7 @@ import "./pill.css";
  * red ink once the pause is long, green ink and a double underline once the goal is kept.
  */
 function Pill({ m }: { m: PillModel }) {
-  const entry = m.done ? "kept" : m.running ? "ink" : m.pause === "long" ? "idle" : "pencil";
+  const entry = m.done ? "kept" : m.running ? "ink" : m.pause === "long" || m.pause === "alarm" ? "idle" : "pencil";
 
   return (
     <div className="pill" data-theme="ledger" data-entry={entry} data-running={m.running}>

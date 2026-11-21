@@ -4,7 +4,7 @@ import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
 import { MIN_SESSION_MS, pauseSession, recoverOpenSession, STALE_MS, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
-import { dayRange, holdMs, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
+import { dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
 const H = 3_600_000;
 const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, end_ms: end, open: 0 });
@@ -181,4 +181,20 @@ test("a session resumed after a quick restart keeps running past its first heart
   expect(await recoverOpenSession(relaunch, c)).not.toBeNull();
   expect(await touchOpen(relaunch + 30_000, false, c)).toBe(true); // the first heartbeat after it
   expect(only(db)).toEqual({ start_ms: 0, end_ms: relaunch + 30_000, open: 1 });
+});
+
+test("pause stages: short, nudge at 5 min, long at the setting, alarm at twice it", () => {
+  const M = 60_000;
+  const s = { nudgeMs: 5 * M, longPauseMs: 20 * M };
+  const at = (min: number, done = false) => pauseLevel({ running: false, done, pausedMs: min * M }, s);
+  expect(pauseLevel({ running: true, done: false, pausedMs: 0 }, s)).toBe("none");
+  expect([at(0), at(4.9), at(5), at(19.9), at(20), at(39.9), at(40)]).toEqual(["short", "short", "nudge", "nudge", "long", "long", "alarm"]);
+  expect(at(90, true)).toBe("short"); // goal met: nothing nags
+  // Long pause set to the 5 min minimum: nudge never shows, long and alarm still come in order.
+  const tight = { nudgeMs: 5 * M, longPauseMs: 5 * M };
+  expect(pauseLevel({ running: false, done: false, pausedMs: 5 * M }, tight)).toBe("long");
+  expect(pauseLevel({ running: false, done: false, pausedMs: 10 * M }, tight)).toBe("alarm");
+  // A nudge_min row (a future setting) is read; nonsense falls back to 5.
+  expect(parseSettings({ nudge_min: "8" }).nudgeMs).toBe(8 * M);
+  expect(parseSettings({ nudge_min: "0" }).nudgeMs).toBe(5 * M);
 });

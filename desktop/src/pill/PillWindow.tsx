@@ -4,6 +4,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useSettings } from "../hooks/useSettings";
 import { useWindowPosition } from "../hooks/useWindowPosition";
 import { fmtClock, fmtHM } from "../lib/format";
+import { pauseLevel } from "../lib/time";
 import { quitApp } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import { pillWidth, THEMES, themeById } from "../themes/registry";
@@ -70,7 +71,7 @@ function PillWindow() {
     running,
     done,
     pausedMs,
-    pause: running ? "none" : pausedMs >= settings.longPauseMs ? "long" : "short",
+    pause: pauseLevel({ running, done, pausedMs }, settings),
     ready,
     showSettingsButton: settings.pillSettingsButton,
     toggle: () => void toggle(),

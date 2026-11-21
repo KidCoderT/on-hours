@@ -12,7 +12,9 @@ export const PILL_STATES = {
   "running-near": { elapsedMs: 3 * HOUR + 41 * MIN + 5_000, running: true, pausedMs: 0 },
   "running-over": { elapsedMs: 4 * HOUR + 37 * MIN + 12_000, running: true, pausedMs: 0 },
   "paused-recent": { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 4 * MIN },
-  "paused-long": { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 2 * HOUR + 50 * MIN },
+  "paused-nudge": { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 8 * MIN },
+  "paused-long": { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 25 * MIN },
+  "paused-alarm": { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 2 * HOUR + 50 * MIN },
 } as const;
 export type PillState = keyof typeof PILL_STATES;
 

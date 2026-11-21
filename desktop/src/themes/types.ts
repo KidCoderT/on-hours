@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import type { PauseLevel } from "../lib/time";
 
 /**
  * The pill theme contract. A theme is a look; the shell (pill/PillWindow.tsx) owns behaviour.
@@ -16,8 +17,8 @@ import type { ComponentType } from "react";
  * 5. It may ignore fields it doesn't show (Baseline ignores hold time).
  */
 
-/** "long" once paused for the user's "Long pause after" setting; "none" while running. */
-export type PauseLevel = "none" | "short" | "long";
+/** Paused: short, nudge, long, then alarm (lib/time.ts pauseLevel). "none" while running. */
+export type { PauseLevel } from "../lib/time";
 
 export type PillModel = {
   elapsedMs: number; // today's total

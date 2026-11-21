@@ -26,7 +26,11 @@ const DAYS = Array.from({ length: 7 }, (_, i) => {
   const from = date.getTime();
   const spans = BLOCKS.filter(([d]) => d === i).map(([, h, m, len]) => ({ start: from + h * HOUR + m * MIN, end: from + h * HOUR + (m + len) * MIN }));
   const ms = spans.reduce((s, x) => s + x.end - x.start, 0);
-  return { date, from, spans, ms, future: i > TODAY, today: i === TODAY, on: [] as typeof spans, breaks: [] as typeof spans, onMs: 0, breakMs: 0 };
+  // The PC on from half an hour before the first session to an hour after the last; a 15 min break after the first.
+  const on = spans.length ? [{ start: spans[0].start - 30 * MIN, end: spans[spans.length - 1].end + HOUR }] : [];
+  const breaks = spans.length ? [{ start: spans[0].end, end: spans[0].end + 15 * MIN }] : [];
+  const len = (xs: typeof spans) => xs.reduce((s, x) => s + x.end - x.start, 0);
+  return { date, from, spans, ms, future: i > TODAY, today: i === TODAY, on, breaks, onMs: len(on), breakMs: len(breaks) };
 });
 const TOTAL = DAYS.reduce((s, d) => s + d.ms, 0);
 const CLOSED = DAYS.slice(0, TODAY);
@@ -44,7 +48,7 @@ export function Week() {
   const day = DAYS[active];
   const diff = active > 0 ? day.ms - DAYS[active - 1].ms : 0;
   // Bars start flat and grow when the chart scrolls into view (the app's own height transition).
-  const days = seen ? DAYS : DAYS.map((d) => ({ ...d, ms: 0, spans: [] }));
+  const days = seen ? DAYS : DAYS.map((d) => ({ ...d, ms: 0, spans: [], on: [], breaks: [] }));
 
   return (
     <section className="section wrap" id="week">
@@ -59,6 +63,8 @@ export function Week() {
           <ul className="ticks">
             <li>Daily totals against your goal</li>
             <li>A timeline of every session</li>
+            <li>Time the PC was on against time you worked</li>
+            <li>Your breaks, marked on the timeline</li>
             <li>This week compared with last week</li>
           </ul>
         </Reveal>
@@ -92,6 +98,12 @@ export function Week() {
                 </span>
               )}
             </div>
+            {day.onMs > 0 && (
+              <p className="usage">
+                PC on {fmtHM(day.onMs)} · focused {fmtHM(day.ms)} ({Math.round((day.ms / day.onMs) * 100)}%)
+                {day.breakMs > 0 && <> · breaks {fmtHM(day.breakMs)}</>}
+              </p>
+            )}
             <p className="memo">{KEPT} of {CLOSED.length} days kept · goal {fmtHM(GOAL)} a day</p>
           </div>
         </Reveal>

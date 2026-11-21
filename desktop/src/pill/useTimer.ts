@@ -37,7 +37,8 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const done = elapsed >= settings.dailyGoalMs;
   const pausedMs = running ? 0 : holdMs(now, pausedSince, today.from, launchedAt);
   const onBreak = !running && brk !== null && brk.start <= now && now < brk.end;
-  const breakLeftMs = onBreak ? brk.end - now : 0;
+  // Rounded up to the second, so a 10 min break starts at 0:10:00 and ends at 0:00:01, never 0:00:00.
+  const breakLeftMs = onBreak ? Math.ceil((brk.end - now) / 1000) * 1000 : 0;
   // A break that ended during this pause: the nagging counts from its end (lib/time.ts pauseLevel).
   const sinceBreakMs = !running && !onBreak && brk !== null && brk.end >= now - pausedMs ? now - brk.end : null;
 

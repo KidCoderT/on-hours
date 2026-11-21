@@ -1,5 +1,5 @@
 /* The away bubble, dressed like the pill's theme. The window is transparent and a little larger than
-   the bubble, so the tail and the shadow have room. Above the pill it hangs from the bottom edge;
+   the bubble, so the tail has room. Above the pill it hangs from the bottom edge;
    below the pill (no room above) it sits at the top edge and the tail points up. */
 .bubble-stage {
   display: flex;
@@ -31,7 +31,6 @@
   font-family: -apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 19px;
-  filter: drop-shadow(0 6px 14px #00000026);
   user-select: none;
   cursor: default;
   animation: bubble-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { ANSWER, hideBubble, placeBubble, showBubble, type BubbleAnswer } from "../lib/bubble";
 import { endBreak, heartbeat, lastBreak, lastClosedSession, lastSessionEnd, pauseSession, recoverOpenSession, reopenSession, sessionsBetween, STALE_MS, startBreak, startSession } from "../lib/db";
 import { fixture } from "../lib/fixture";
@@ -13,7 +13,7 @@ const HEARTBEAT_MS = 30_000;
 const AWAY_POLL_MS = 2_000;
 /** Idle under this after an away-pause: they're back, so ask. */
 const BACK_MS = 3_000;
-/** The "count it?" question waits this long for an answer, then counts as No. */
+/** "Welcome back" waits this long for an answer, then goes: the timer stays paused, the away time out. */
 const COUNT_WAIT_MS = 60_000;
 
 type AwayCheck = { idle_ms: number; locked: boolean };
@@ -39,6 +39,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const [synced, setSynced] = useState(0); // bump to re-read today's total from the DB
   const [saveFailed, setSaveFailed] = useState(false); // the last session write failed: the pill shows it
   const bubbleRef = useRef<Bubble | null>(null);
+  const [bubbleKind, setBubbleKind] = useState<Bubble["kind"] | null>(null); // bubbleRef's kind, to drive effects
   const busy = useRef(false); // ignore double-clicks while a DB write is in flight
   const runningRef = useRef(false);
   const lastTick = useRef(Date.now());
@@ -198,7 +199,9 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
    *   Yes: carry on (the click is input, so the idle count starts over). No: pause at the last input.
    *   Input comes back without an answer: the bubble fades away and the time counts.
    * - "Pause after": pause at the last input, so the idle time isn't counted. Back at the PC, the
-   *   bubble asks whether it was work: Yes reopens the session, No (or no answer) leaves it out.
+   *   bubble says "Welcome back": Count it reopens the session (the away time was work), Start now
+   *   starts a new one (it wasn't). A click elsewhere, typing, or a minute's wait dismisses it: the
+   *   timer stays paused and the away time stays out.
    * Locking pauses at the last input and asks nothing. A sleep is the heartbeat's job, nothing asked.
    */
   const closeAt = async (end: number): Promise<AwaySession | null> => {
@@ -217,6 +220,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const say = (b: Bubble | null, how: "drop" | "quiet" = "drop") => {
     const was = bubbleRef.current;
     bubbleRef.current = b;
+    setBubbleKind(b?.kind ?? null);
     const fail = (e: unknown) => console.error("could not update the away bubble", e);
     if (!b) {
       if (was) hideBubble(how).catch(fail);
@@ -224,10 +228,10 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     }
     const theme = settings.pillTheme;
     if (b.kind === "check") showBubble({ kind: "check", title: "Hey, you still there?", sub: `No keyboard or mouse since ${fmtTime(b.from)}.`, theme }).catch(fail);
-    if (b.kind === "paused") showBubble({ kind: "paused", title: "Paused.", sub: `Away since ${fmtTime(b.away.end)}. I'll ask when you're back.`, theme }).catch(fail);
+    if (b.kind === "paused") showBubble({ kind: "paused", title: "Paused.", sub: `Away since ${fmtTime(b.away.end)}.`, theme }).catch(fail);
     if (b.kind === "count") {
       const mins = Math.max(1, Math.round((Date.now() - b.away.end) / 60_000));
-      showBubble({ kind: "count", title: `Was that ${mins} min work?`, sub: `Away ${fmtTime(b.away.end)} – ${fmtTime(Date.now())}`, primary: "no", theme }).catch(fail);
+      showBubble({ kind: "count", title: "Welcome back.", sub: `Away ${mins} min, since ${fmtTime(b.away.end)}.`, primary: "no", theme }).catch(fail);
     }
   };
 
@@ -260,15 +264,47 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
         if (runningRef.current) await closeAt(b.from); // "No": it wasn't work since the last input
       });
     }
-    if (b.kind === "count" && a.yes) {
+    if (b.kind === "count") {
       void write(async (t) => {
-        // "It was work": the session carries on as if never paused. Not if they already pressed play.
-        if (runningRef.current || !(await reopenSession(b.away.id, b.away.end, t))) return;
-        setOpenStart(b.away.start);
-        setSynced((n) => n + 1); // the reopened session leaves today's finished total
+        if (runningRef.current) return; // they already pressed play
+        if (a.yes) {
+          // "Count it": the session carries on as if never paused.
+          if (!(await reopenSession(b.away.id, b.away.end, t))) return;
+          setOpenStart(b.away.start);
+          setSynced((n) => n + 1); // the reopened session leaves today's finished total
+        } else {
+          // "Start now": the away time stays out, and work starts from here.
+          await startSession(t);
+          setOpenStart(t);
+        }
       });
     }
+    setBubbleKind(null);
   };
+
+  // "Welcome back" is up: a click anywhere but the bubble, or typing, means they've moved on. It
+  // fades after a beat, the timer stays paused and the away time stays out. The bubble can't take
+  // focus, so the clicks and keys are read from Windows (away.rs input_now).
+  useEffect(() => {
+    if (bubbleKind !== "count" || !isTauri()) return;
+    let stop = false;
+    (async () => {
+      const win = await Window.getByLabel("bubble");
+      if (!win) return;
+      const [pos, size] = await Promise.all([win.outerPosition(), win.outerSize()]);
+      const inside = (x: number, y: number) => x >= pos.x && x < pos.x + size.width && y >= pos.y && y < pos.y + size.height;
+      await invoke("input_now"); // clear "pressed since the last call": the key that brought them back doesn't count
+      while (!stop) {
+        await new Promise((r) => setTimeout(r, 60));
+        const i = await invoke<{ x: number; y: number; mouse: boolean; key: boolean }>("input_now").catch(() => null);
+        if (stop || bubbleRef.current?.kind !== "count") return;
+        if (i && (i.key || (i.mouse && !inside(i.x, i.y)))) return say(null, "quiet");
+      }
+    })().catch((e) => console.error("could not watch for a dismiss", e));
+    return () => {
+      stop = true;
+    };
+  }, [bubbleKind]);
 
   const latest = useRef({ look, onAnswer });
   latest.current = { look, onAnswer };

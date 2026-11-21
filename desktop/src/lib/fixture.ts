@@ -58,3 +58,24 @@ export function fixtureSessions(now: number) {
   ];
   return blocks.map(([d, h, m, len], i) => ({ id: i + 1, start_ms: at(d, h, m), end_ms: at(d, h, m) + len * MIN, open: 0 }));
 }
+
+/** PC-on stretches around each day's fixture sessions: on 30 min before the first, off 45 min after the last. */
+export function fixtureAwake(now: number) {
+  const byDay = new Map<number, { start_ms: number; end_ms: number }>();
+  for (const s of fixtureSessions(now)) {
+    const day = new Date(s.start_ms).setHours(0, 0, 0, 0);
+    const d = byDay.get(day);
+    byDay.set(day, { start_ms: Math.min(d?.start_ms ?? Infinity, s.start_ms - 30 * MIN), end_ms: Math.min(now, Math.max(d?.end_ms ?? 0, s.end_ms + 45 * MIN)) });
+  }
+  return [...byDay.values()];
+}
+
+/** A 15 min break straight after each day's first fixture session. */
+export function fixtureBreaks(now: number) {
+  const first = new Map<number, number>(); // day → end of its first session
+  for (const s of fixtureSessions(now)) {
+    const day = new Date(s.start_ms).setHours(0, 0, 0, 0);
+    first.set(day, Math.min(first.get(day) ?? Infinity, s.end_ms));
+  }
+  return [...first.values()].map((end) => ({ start_ms: end, end_ms: end + 15 * MIN }));
+}

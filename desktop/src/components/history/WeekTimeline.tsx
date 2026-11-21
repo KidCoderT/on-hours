@@ -6,10 +6,16 @@ import type { useWeekHistory } from "./useWeekHistory";
 type Day = ReturnType<typeof useWeekHistory>["days"][number];
 type Props = { days: Day[]; goalMs: number; active: number; onPick: (i: number) => void };
 
-/** Calendar-style week: each session drawn at the hours it happened, day totals underneath. */
+type Kind = "work" | "break" | "on";
+const TIP: Record<Kind, string> = { work: "", break: "Break ", on: "PC on " };
+
+/**
+ * Calendar-style week: each session drawn at the hours it happened, day totals underneath.
+ * Behind the sessions: when the PC was on (a pale band) and planned breaks (hatched).
+ */
 function WeekTimeline({ days, goalMs, active, onPick }: Props) {
   // Vertical range in hours after day start: fit the week's sessions, at least 6h, on even hours.
-  const hours = days.flatMap((d) => d.spans.flatMap((s) => [(s.start - d.from) / HOUR, (s.end - d.from) / HOUR]));
+  const hours = days.flatMap((d) => [...d.spans, ...d.on, ...d.breaks].flatMap((s) => [(s.start - d.from) / HOUR, (s.end - d.from) / HOUR]));
   let lo = hours.length ? Math.floor(Math.min(...hours)) : 8;
   let hi = hours.length ? Math.ceil(Math.max(...hours)) : 18;
   lo -= lo % 2;
@@ -29,7 +35,17 @@ function WeekTimeline({ days, goalMs, active, onPick }: Props) {
     setCursor({ col, fy });
   };
   const hoverAt = cursor && days[cursor.col].from + (lo + cursor.fy * (hi - lo)) * HOUR;
-  const hit = cursor && days[cursor.col].spans.find((s) => hoverAt! >= s.start && hoverAt! < s.end);
+  // What's under the mouse: a session first, then a break, then PC-on time.
+  const col = cursor && days[cursor.col];
+  const hit = col
+    ? ([["work", col.spans], ["break", col.breaks], ["on", col.on]] as const)
+        .map(([kind, spans]) => ({ kind: kind as Kind, span: spans.find((s) => hoverAt! >= s.start && hoverAt! < s.end) }))
+        .find((h) => h.span)
+    : undefined;
+  const place = (d: Day, s: { start: number; end: number }) => ({
+    top: y((s.start - d.from) / HOUR),
+    height: `max(2px, calc(${y((s.end - d.from) / HOUR)} - ${y((s.start - d.from) / HOUR)}))`,
+  });
 
   return (
     <>
@@ -50,16 +66,11 @@ function WeekTimeline({ days, goalMs, active, onPick }: Props) {
               disabled={d.future}
               onMouseEnter={() => onPick(i)}
               onFocus={() => onPick(i)}
-              aria-label={`${fmtDate(d.date, { weekday: "long", month: "short", day: "numeric" })}: ${d.spans.length} sessions, ${fmtHM(d.ms)}`}
+              aria-label={`${fmtDate(d.date, { weekday: "long", month: "short", day: "numeric" })}: ${d.spans.length} sessions, ${fmtHM(d.ms)}${d.onMs ? `, PC on ${fmtHM(d.onMs)}` : ""}`}
             >
-              {d.spans.map((s) => (
-                <span
-                  key={s.start}
-                  className="block"
-                  data-hit={s === hit}
-                  style={{ top: y((s.start - d.from) / HOUR), height: `max(2px, calc(${y((s.end - d.from) / HOUR)} - ${y((s.start - d.from) / HOUR)}))` }}
-                />
-              ))}
+              {d.on.map((s) => <span key={`on${s.start}`} className="on-band" style={place(d, s)} />)}
+              {d.breaks.map((s) => <span key={`br${s.start}`} className="break-block" data-hit={s === hit?.span} style={place(d, s)} />)}
+              {d.spans.map((s) => <span key={s.start} className="block" data-hit={s === hit?.span} style={place(d, s)} />)}
             </button>
           ))}
         </div>
@@ -68,7 +79,7 @@ function WeekTimeline({ days, goalMs, active, onPick }: Props) {
             <span className="cursor-time">{fmtTime(hoverAt!)}</span>
             {hit && (
               <span className="cursor-tip" data-edge={cursor.col < 2 ? "left" : cursor.col > 4 ? "right" : undefined} style={{ left: `${((cursor.col + 0.5) / days.length) * 100}%` }}>
-                {fmtHM(hit.end - hit.start)} · {fmtTime(hit.start)}–{fmtTime(hit.end)}
+                {TIP[hit.kind]}{fmtHM(hit.span!.end - hit.span!.start)} · {fmtTime(hit.span!.start)}–{fmtTime(hit.span!.end)}
               </span>
             )}
           </div>
@@ -85,6 +96,11 @@ function WeekTimeline({ days, goalMs, active, onPick }: Props) {
         {days.map((d, i) => (
           <span key={i} data-future={d.future}>{d.future ? "" : d.ms ? fmtHM(d.ms) : "–"}</span>
         ))}
+      </div>
+      <div className="legend" aria-hidden="true">
+        <span><i className="block" />Focused</span>
+        <span><i className="break-block" />Break</span>
+        <span><i className="on-band" />PC on</span>
       </div>
     </>
   );

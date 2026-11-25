@@ -97,13 +97,18 @@ function WeekTimeline({ days, goalMs, active, onPick }: Props) {
           <span key={i} data-future={d.future}>{d.future ? "" : d.ms ? fmtHM(d.ms) : "–"}</span>
         ))}
       </div>
-      <div className="legend" aria-hidden="true">
-        <span><i className="block" />Focused</span>
-        <span><i className="break-block" />Break</span>
-        <span><i className="on-band" />PC on</span>
-      </div>
+      <Legend />
     </>
   );
 }
+
+/** Both views draw the same three things in the same colours. */
+export const Legend = () => (
+  <div className="legend" aria-hidden="true">
+    <span><i className="block" />Focused</span>
+    <span><i className="break-block" />Break</span>
+    <span><i className="on-band" />PC on</span>
+  </div>
+);
 
 export default WeekTimeline;

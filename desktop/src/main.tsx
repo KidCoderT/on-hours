@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
 import PillWindow from "./pill/PillWindow";
 import BubbleWindow from "./windows/bubble/BubbleWindow";
+import ConfettiWindow from "./windows/confetti/ConfettiWindow";
 import SettingsWindow from "./windows/settings/SettingsWindow";
 import { applyTheme, getTheme } from "./lib/theme";
 import "./styles/tokens.css";
@@ -21,7 +22,7 @@ void themeRestored.finally(() => {
 const label = isTauri()
   ? getCurrentWindow().label
   : new URLSearchParams(location.search).get("window");
-const View = label === "settings" ? SettingsWindow : label === "bubble" ? BubbleWindow : PillWindow;
+const View = label === "settings" ? SettingsWindow : label === "bubble" ? BubbleWindow : label === "confetti" ? ConfettiWindow : PillWindow;
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode><View /></React.StrictMode>,

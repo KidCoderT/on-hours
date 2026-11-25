@@ -51,6 +51,23 @@
         "visible": false,
         "focus": false,
         "focusable": false
+      },
+      {
+        "label": "confetti",
+        "title": "On Hours",
+        "width": 420,
+        "height": 300,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": false,
+        "focusable": false
       }
     ],
     "security": {

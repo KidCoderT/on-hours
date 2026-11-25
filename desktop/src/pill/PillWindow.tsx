@@ -13,6 +13,7 @@ import type { PillModel } from "../themes/types";
 import { useAlarm } from "./useAlarm";
 import { useAutoUpdate } from "./useAutoUpdate";
 import { useAwakeLog } from "./useAwakeLog";
+import { useCelebrate } from "./useCelebrate";
 import { useFitWindow } from "./useFitWindow";
 import { useTimer } from "./useTimer";
 
@@ -94,6 +95,8 @@ function PillWindow() {
   const alarm = m.pause === "alarm" && isTauri();
   useFitWindow(width, loaded, alarm ? ALARM_ZOOM : 1);
   useAlarm(alarm);
+  // Goal met while working: confetti, a wiggle and a green flash.
+  const celebrate = useCelebrate(done, running, ready);
 
   // The tray's "Start / Pause". A ref, so the listener always calls the current toggle.
   const latest = useRef(m);
@@ -134,7 +137,7 @@ function PillWindow() {
   return (
     <div
       className="pill-shell" data-tauri-drag-region="deep" onContextMenu={onContextMenu}
-      data-error={saveFailed || undefined} title={saveFailed ? SAVE_FAILED : undefined}
+      data-error={saveFailed || undefined} data-celebrate={celebrate || undefined} title={saveFailed ? SAVE_FAILED : undefined}
     >
       {/* Not a live region: it changes every second and would read the clock aloud nonstop. */}
       <span className="sr-only">{saveFailed && `${SAVE_FAILED} `}{spokenStatus(m)}</span>

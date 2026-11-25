@@ -32,6 +32,16 @@
 .col:focus-visible { outline-offset: -2px; }
 .bar { width: 24px; border-radius: 4px 4px 0 0; background: var(--bar); transition: height 280ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms; }
 .col[data-met="true"] .bar { background: var(--green); }
+/* Overlaid on the worked bar: the PC-on time behind it (wider, violet) and the breaks stacked on it (yellow). */
+.col { position: relative; }
+.bar { position: relative; z-index: 1; }
+.bar-on, .bar-break { position: absolute; left: 50%; transform: translateX(-50%); transition: height 280ms cubic-bezier(0.2, 0.8, 0.2, 1), bottom 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.bar-on {
+  bottom: 0; width: 36px; border-radius: 5px 5px 0 0;
+  background: color-mix(in srgb, var(--pc-on) 14%, transparent);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--pc-on) 70%, transparent);
+}
+.bar-break { z-index: 2; width: 24px; background: var(--yellow); }
 .col[data-active="true"]:not([data-met="true"]) .bar { background: color-mix(in srgb, var(--ink) 38%, var(--surface)); }
 .xlabels { display: flex; margin: 12px 0 0 var(--gutter); line-height: 18px; }
 .xlabels span { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
@@ -42,7 +52,7 @@
 .memo { margin: 0; font-size: 10.5px; line-height: 16px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums; }
 .day-detail { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; margin-top: 20px; padding: 14px 0; border-top: 1px solid var(--edge); font-size: 13px; }
 
-@media (prefers-reduced-motion: reduce) { .bar { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .bar, .bar-on, .bar-break { transition: none; } }
 
 /* ---- View switch + timeline ---- */
 .view-switch { margin-left: auto; align-self: center; }
@@ -50,7 +60,7 @@
 
 /* Calendar-style: time runs downward, each session is a block at the hours it happened. */
 /* Reserve the timeline's totals row and legend in both views so changing views keeps the detail row steady. */
-.chart[data-view="totals"] { padding-bottom: 44px; }
+.chart[data-view="totals"] { padding-bottom: 22px; }
 .timeline .col { position: relative; border-radius: 4px; border-right: 1px solid color-mix(in srgb, var(--edge) 55%, transparent); }
 .timeline .col:last-child { border-right: 0; }
 .block {
@@ -89,16 +99,23 @@
   .day-detail > .delta { grid-column: 1 / -1; }
 }
 
-/* Behind the sessions: when the PC was on (a pale band, full column width) and planned breaks (hatched). */
-.on-band { position: absolute; left: 1px; right: 1px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 7%, transparent); }
-.break-block {
-  position: absolute; left: 5px; right: 5px;
-  border-radius: 3px;
-  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--ink) 30%, transparent) 0 1.5px, transparent 1.5px 4px);
+/* Behind the sessions: when the PC was on (a violet band with a rail down its left, full column width)
+   and planned breaks (yellow). Violet so PC time never reads as work or as a break. */
+.chart { --pc-on: #6d5fd8; }
+@media (prefers-color-scheme: dark) { .chart { --pc-on: #a99cff; } }
+.on-band {
+  position: absolute; left: 1px; right: 1px; border-radius: 3px;
+  background: color-mix(in srgb, var(--pc-on) 14%, transparent);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--pc-on) 70%, transparent);
 }
+.break-block { position: absolute; left: 5px; right: 5px; border-radius: 3px; background: var(--yellow); }
+/* The picked day: a lighter wash in the timeline, so the PC-on band still reads through it. */
+.timeline .col[data-active="true"] { background: color-mix(in srgb, var(--hover) 45%, transparent); }
 .break-block[data-hit="true"] { box-shadow: 0 0 0 1.5px var(--ink); }
 .legend { display: flex; gap: 14px; margin: 8px 0 0 var(--gutter); font-size: 10.5px; line-height: 14px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend i { position: static; display: inline-block; width: 10px; height: 10px; }
+/* Focused: green on a day that met the goal, grey before it. */
+.legend i.block { background: linear-gradient(135deg, var(--green) 50%, var(--bar) 50%); }
 /* Under the day detail: the day's PC time against its focused time. */
 .usage { margin: -6px 0 12px; font-size: 12px; line-height: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }

@@ -48,7 +48,7 @@ export function Week() {
   const day = DAYS[active];
   const diff = active > 0 ? day.ms - DAYS[active - 1].ms : 0;
   // Bars start flat and grow when the chart scrolls into view (the app's own height transition).
-  const days = seen ? DAYS : DAYS.map((d) => ({ ...d, ms: 0, spans: [], on: [], breaks: [] }));
+  const days = seen ? DAYS : DAYS.map((d) => ({ ...d, ms: 0, onMs: 0, breakMs: 0, spans: [], on: [], breaks: [] }));
 
   return (
     <section className="section wrap" id="week">

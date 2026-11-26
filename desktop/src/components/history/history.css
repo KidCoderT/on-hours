@@ -41,7 +41,7 @@
   background: color-mix(in srgb, var(--pc-on) 14%, transparent);
   box-shadow: inset 0 2px 0 color-mix(in srgb, var(--pc-on) 70%, transparent);
 }
-.bar-break { z-index: 2; width: 24px; background: var(--yellow); }
+.bar-break { z-index: 2; width: 24px; border-radius: 4px 4px 0 0; }
 /* A stretch past the goal: a mark at goal + stretch, in ink so it reads on the green bar; solid once made. */
 .stretch-mark { position: absolute; z-index: 3; left: 50%; width: 36px; height: 0; transform: translateX(-50%); border-top: 2px dashed var(--ink); }
 .stretch-mark[data-made="true"] { border-top-style: solid; }
@@ -111,7 +111,9 @@
   background: color-mix(in srgb, var(--pc-on) 14%, transparent);
   box-shadow: inset 2px 0 0 color-mix(in srgb, var(--pc-on) 70%, transparent);
 }
-.break-block { position: absolute; left: 5px; right: 5px; border-radius: 3px; background: var(--yellow); }
+.break-block { position: absolute; left: 5px; right: 5px; border-radius: 3px; }
+/* Breaks: a pale yellow fill with a yellow edge, so they sit with the work instead of shouting over it. */
+.break-block, .bar-break { background: color-mix(in srgb, var(--yellow) 30%, var(--surface)); box-shadow: inset 0 0 0 1.5px var(--yellow); }
 /* The picked day: a lighter wash in the timeline, so the PC-on band still reads through it. */
 .timeline .col[data-active="true"] { background: color-mix(in srgb, var(--hover) 45%, transparent); }
 .break-block[data-hit="true"] { box-shadow: 0 0 0 1.5px var(--ink); }

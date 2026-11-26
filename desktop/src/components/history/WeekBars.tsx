@@ -15,7 +15,7 @@ type Props = { days: Day[]; goalMs: number; active: number; onPick: (i: number) 
 function WeekBars({ days, goalMs, active, onPick }: Props) {
   // Y scale in whole hours, ticks every 2h, always tall enough to show the goal and the PC-on time.
   const maxH = Math.max(6, Math.ceil(Math.max(goalMs, ...days.map((d) => Math.max(d.ms + d.breakMs, d.onMs, goalMs + d.extraMs))) / HOUR / 2) * 2);
-  const ticks = Array.from({ length: maxH / 2 + 1 }, (_, i) => i * 2).filter((t) => t * HOUR !== goalMs);
+  const ticks = Array.from({ length: maxH / 2 + 1 }, (_, i) => i * 2).filter((t) => Math.abs(t * HOUR - goalMs) >= maxH * HOUR * 0.06); // never under the Goal label
   const pct = (ms: number) => `${(ms / (maxH * HOUR)) * 100}%`;
 
   return (
@@ -46,7 +46,7 @@ function WeekBars({ days, goalMs, active, onPick }: Props) {
                 <>
                   <span className="bar-on" style={{ height: pct(d.onMs) }} />
                   <span className="bar" style={{ height: `max(2px, ${pct(d.ms)})` }} />
-                  <span className="bar-break" style={{ bottom: pct(d.ms), height: pct(d.breakMs) }} />
+                  {d.breakMs > 0 && <span className="bar-break" style={{ bottom: `calc(${pct(d.ms)} + 2px)`, height: `max(3px, calc(${pct(d.breakMs)} - 2px))` }} />}
                   {d.extraMs > 0 && <span className="stretch-mark" data-made={d.ms >= goalMs + d.extraMs} style={{ bottom: pct(goalMs + d.extraMs) }} />}
                 </>
               )}

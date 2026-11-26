@@ -87,8 +87,10 @@ SF does in the menu bar clock.
 
 **Paused treatment.** Three steps, all borrowed from how a Mac shows attention:
 
-1. *Paused, short.* The light is a steady traffic-light red. The digits keep full strength: the
-   number never dims. (A grey "inactive window" look was tried and rejected: it read as broken.)
+1. *Paused, short.* The light is grey and the number a readable grey (4.5:1): at rest, nothing
+   asked yet. From the nudge on the light is traffic-light red, a cue that needs no motion, and the
+   number is back to full ink. (An all-grey "inactive window" look was tried early and read as broken;
+   this keeps the grey to the quiet stage only, and the red still arrives without any animation.)
 2. *Paused past "Long pause after"* (20 min by default, the user's own setting). The red light
    bounces twice, the way a Dock icon asks for attention.
 3. *Still paused.* The red light breathes every 5s, like the power light on a sleeping Mac, until

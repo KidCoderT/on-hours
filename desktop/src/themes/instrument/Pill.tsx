@@ -6,7 +6,7 @@ import "./pill.css";
 
 const GAUGE_SEGMENTS = 10;
 
-// RUN: working, under goal. MET: goal reached (on a stretch, MET goes amber, still running, and the second line counts what's left of it). HOLD: paused, recently (blinking from the nudge on).
+// RUN: working, under goal. MET: goal reached (on a stretch, MET goes amber, still running, and the second line counts what's left of it). HOLD: paused, recently (amber and blinking from the nudge on).
 // IDLE: paused too long. ALM: the alarm. BRK: a planned break, in blue: the digits count it down, the
 // second line keeps today's total.
 type Mode = "run" | "met" | "hold" | "idle" | "alm" | "brk";

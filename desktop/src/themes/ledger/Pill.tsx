@@ -8,7 +8,7 @@ import "./pill.css";
  * Today's line in the book. Ink while running, pencil while briefly paused, blue-black ink on a
  * planned break (the figure counts it down), and green ink with a double underline once the goal is kept. A pause that drags on gets marked up, harder each stage:
  * nudge underlines the note in red, a long pause turns the line red and stamps the note OVERDUE,
- * and the alarm strikes the figure out and re-stamps the note with what is still owed today.
+ * and the alarm re-stamps the note with what is still owed today (the figure is never struck: it's earned).
  * On a stretch past the goal the figure goes back to ink (still at it), its double rule only while paused,
  * the diamond stays green (kept), and the margin note says how much of the stretch is left.
  */

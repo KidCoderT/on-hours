@@ -31,7 +31,7 @@ const DAYS = Array.from({ length: 7 }, (_, i) => {
   const breaks = spans.length ? [{ start: spans[0].end, end: spans[0].end + 15 * MIN }] : [];
   const len = (xs: typeof spans) => xs.reduce((s, x) => s + x.end - x.start, 0);
   const extraMs = i === 2 ? 30 * MIN : 0; // Wednesday: goal met, then a 30 min stretch, made
-  return { date, from, spans, ms, future: i > TODAY, today: i === TODAY, rest: false, on, breaks, onMs: len(on), breakMs: len(breaks), extraMs };
+  return { date, from, spans, ms, future: i > TODAY, today: i === TODAY, rest: false, goalMs: GOAL, on, breaks, onMs: len(on), breakMs: len(breaks), extraMs };
 });
 const TOTAL = DAYS.reduce((s, d) => s + d.ms, 0);
 const CLOSED = DAYS.slice(0, TODAY);

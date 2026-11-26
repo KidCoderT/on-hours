@@ -124,3 +124,16 @@
 .legend i.block { background: linear-gradient(135deg, var(--green) 50%, var(--bar) 50%); }
 /* Under the day detail: the day's PC time against its focused time. */
 .usage { margin: -6px 0 12px; font-size: 12px; line-height: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Edit sessions: under the day detail, folded away until wanted. */
+.sessions-edit { margin: 0 0 12px; font-size: 12px; color: var(--muted); }
+.sessions-edit summary { cursor: pointer; width: max-content; }
+.sessions-edit summary:focus-visible { outline: 2px solid var(--icon); outline-offset: 2px; border-radius: 2px; }
+.sessions-edit ul { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.sessions-edit li { display: flex; align-items: center; gap: 10px; min-height: 28px; }
+.sessions-edit .times { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.sessions-edit input[type="time"] { width: 92px; height: 26px; padding: 0 4px; font: inherit; }
+.sessions-edit .len { min-width: 52px; font-variant-numeric: tabular-nums; }
+.sessions-edit .link:disabled { opacity: 0.45; cursor: default; }
+.sessions-edit .danger { color: #d9382f; }
+.sessions-edit .row-error { margin: 6px 0 0; }

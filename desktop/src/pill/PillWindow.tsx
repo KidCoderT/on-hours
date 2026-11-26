@@ -35,6 +35,8 @@ const ALARM_ZOOM = 1.5;
 
 /** Shown (ring + tooltip + spoken) after a session write fails, until the next one succeeds. */
 const SAVE_FAILED = "Couldn't save your time. Try again.";
+/** Shown when the timer couldn't read its data: play tries again. */
+const LOAD_FAILED = "Couldn't load your time. Press play to try again.";
 
 /** What a screen reader hears; themes keep their own visuals aria-hidden. */
 function spokenStatus(m: PillModel) {
@@ -52,7 +54,7 @@ function spokenStatus(m: PillModel) {
  */
 function PillWindow() {
   const { settings, loaded, save } = useSettings();
-  const { bubble, elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
+  const { bubble, elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, loadFailed, retry, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
   const theme = themeById(settings.pillTheme);
   const width = pillWidth(theme, settings.pillSettingsButton);
   // In the app, wait for the saved settings so the pill never flashes the default theme first.
@@ -91,9 +93,9 @@ function PillWindow() {
     breakLeftMs,
     // Judged by `nag`: the pause, counted from a return to the PC or a quiet start of the day.
     pause: pauseLevel({ running, done: done || quiet, pausedMs: nag, onBreak, sinceBreakMs, away }, settings),
-    ready,
+    ready: ready || loadFailed, // a failed load leaves play on, to retry
     showSettingsButton: settings.pillSettingsButton,
-    toggle: () => void toggle(),
+    toggle: () => (loadFailed ? retry() : void toggle()),
     openSettings: () => void openSettings().catch((e) => console.error("could not open settings", e)),
   };
 
@@ -162,10 +164,10 @@ function PillWindow() {
   return (
     <div
       className="pill-shell" data-tauri-drag-region="deep" onContextMenu={onContextMenu}
-      data-error={saveFailed || undefined} data-celebrate={celebrate || undefined} title={saveFailed ? SAVE_FAILED : undefined}
+      data-error={saveFailed || loadFailed || undefined} data-celebrate={celebrate || undefined} title={loadFailed ? LOAD_FAILED : saveFailed ? SAVE_FAILED : undefined}
     >
       {/* Not a live region: it changes every second and would read the clock aloud nonstop. */}
-      <span className="sr-only">{saveFailed && `${SAVE_FAILED} `}{spokenStatus(m)}</span>
+      <span className="sr-only">{loadFailed && `${LOAD_FAILED} `}{saveFailed && `${SAVE_FAILED} `}{spokenStatus(m)}</span>
       {/* The moments, read once as they happen: the text appears, then goes. */}
       <span className="sr-only" aria-live="polite">{celebrate ? "Daily goal met." : m.pause === "alarm" ? "Paused too long. Time to get back to work." : ""}</span>
       <theme.Pill m={m} />

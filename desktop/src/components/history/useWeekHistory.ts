@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
-import { awakeBetween, breaksBetween, extrasBetween, firstSessionStart, sessionsBetween, STALE_MS, type Session } from "../../lib/db";
+import { awakeBetween, breaksBetween, extrasBetween, firstSessionStart, goalsBetween, sessionsBetween, STALE_MS, type Session } from "../../lib/db";
 import { fixture, fixtureAwake, fixtureBreaks, fixtureSessions } from "../../lib/fixture";
 import { addDays, dayRange, weekStartOf, startOfDay, trimmedTotal, WEEK, workDayOf } from "../../lib/time";
 
@@ -14,7 +14,7 @@ const slices = (spans: Span[], from: number, to: number) =>
  * Worked time per day for the week `offset` weeks back, plus the week before it for deltas.
  * Also when the PC was on, the planned breaks, and any stretch past the goal.
  */
-export function useWeekHistory(offset: number, dayStart: string, weekStart: number, restDays: number[] = []) {
+export function useWeekHistory(offset: number, dayStart: string, weekStart: number, restDays: number[] = [], goalMs = 0) {
   const today = startOfDay(workDayOf(new Date(), dayStart));
   const thisWeekStart = weekStartOf(today, weekStart);
   const first = addDays(thisWeekStart, -7 * offset);
@@ -22,6 +22,9 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
   const [awake, setAwake] = useState<Span[]>(() => (fixture ? fixtureAwake(Date.now()) : []));
   const [breaks, setBreaks] = useState<Span[]>(() => (fixture ? fixtureBreaks(Date.now()) : []));
   const [extras, setExtras] = useState<Map<number, number>>(() => new Map()); // each day's stretch, by its start
+  const [goals, setGoals] = useState<Map<number, number>>(() => new Map()); // the goal each day was judged against
+  const [failed, setFailed] = useState(false); // a load failed: the chart says so, with a retry
+  const [loads, setLoads] = useState(0); // bump to load again (a retry, a hand edit)
   const [maxOffset, setMaxOffset] = useState(fixture ? 1 : 0); // can't page back past the first session
 
   // Load this week plus the week before it (for "vs last week / vs yesterday").
@@ -32,8 +35,15 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
     if (!isTauri()) return; // design preview: empty chart
     // Paging fast starts several loads; only this week's may land, or the chart shows another week.
     let alive = true;
-    const fail = (e: unknown) => console.error("could not load history", e);
+    const fail = (e: unknown) => {
+      console.error("could not load history", e);
+      if (alive) setFailed(true);
+    };
     const load = () => {
+      setFailed(false);
+      goalsBetween(from, to)
+        .then((g) => alive && setGoals(g))
+        .catch(fail);
       sessionsBetween(from, to)
         .then((s) => alive && setSessions(s))
         .catch(fail);
@@ -57,7 +67,7 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
       alive = false;
       window.removeEventListener("focus", load);
     };
-  }, [from, to, +thisWeekStart, dayStart]);
+  }, [from, to, +thisWeekStart, dayStart, loads]);
 
   // ponytail: a running session counts up to "now" but only refreshes on focus / paging; add a timer if a live chart matters.
   const now = Date.now();
@@ -81,6 +91,7 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
       onMs: trimmedTotal(awakeLive, from, to),
       breakMs: trimmedTotal(breaksLive, from, to),
       extraMs: extras.get(from) ?? 0, // a stretch said yes to: the goal plus this, just that day
+      goalMs: goals.get(from) ?? goalMs, // what the day was judged against; before goals were kept, today's
     };
   });
 
@@ -90,5 +101,6 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
   const prevTotal = days.slice(0, elapsed).reduce((s, d) => s + worked(addDays(d.date, -7)), 0);
   const weekPct = prevTotal ? Math.round(((total - prevTotal) / prevTotal) * 100) : null;
 
-  return { first, days, elapsed, total, weekPct, maxOffset, worked };
+  const reload = () => setLoads((n) => n + 1);
+  return { first, days, elapsed, total, weekPct, maxOffset, worked, sessions, failed, reload };
 }

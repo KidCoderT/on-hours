@@ -18,6 +18,16 @@ export const fmtTime = (ms: number) => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+/** Local date and time, sortable: 2026-11-04 09:30 */
+const stamp = (ms: number) => {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${fmtTime(ms)}`;
+};
+
+/** Finished sessions as CSV: one row each, local times, whole minutes. Opens in Excel. */
+export const sessionsCsv = (sessions: { start_ms: number; end_ms: number }[]) =>
+  ["start,end,minutes", ...sessions.map((s) => `${stamp(s.start_ms)},${stamp(s.end_ms)},${Math.round((s.end_ms - s.start_ms) / 60_000)}`)].join("\r\n") + "\r\n";
+
 export const fmtDate =(d: Date, opts: Intl.DateTimeFormatOptions) => d.toLocaleDateString(undefined, opts);
 
 /** Short duration, hours:minutes rounded to the minute, sign dropped: 4:05. Used by pill themes. */

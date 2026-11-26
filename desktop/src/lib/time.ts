@@ -57,6 +57,19 @@ export const nagMs = (now: number, pausedMs: number, backAt: number | null, dayF
 /** How much a stretch adds to today's target: `stretchMs` past the target, or past now once beyond it. */
 export const stretchAdd = (elapsed: number, target: number, stretchMs: number) => Math.max(stretchMs, elapsed + stretchMs - target);
 
+/**
+ * "HH:MM" on the work-day labelled `day` as a timestamp. Before the day start it's the next
+ * calendar day (day start 04:00: "02:30" is the night after), so a work-day's times run in order.
+ */
+export const atWorkDay = (day: Date, hhmm: string, dayStart: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate() + (hhmm < dayStart ? 1 : 0), h, m).getTime();
+};
+
+/** Does [start, end) overlap any of `spans` (other than the one with id `except`)? Hand edits can't double count. */
+export const overlapsAny = (spans: { id: number; start_ms: number; end_ms: number }[], start: number, end: number, except?: number) =>
+  spans.some((s) => s.id !== except && s.start_ms < end && start < s.end_ms);
+
 /** Time worked inside [from, to): sessions crossing the edges are trimmed, never split. */
 export const trimmedTotal = (sessions: Span[], from: number, to: number) =>
   sessions.reduce((sum, s) => sum + Math.max(0, Math.min(s.end_ms, to) - Math.max(s.start_ms, from)), 0);

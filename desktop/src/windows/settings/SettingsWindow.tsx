@@ -6,7 +6,10 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./settings.css"; // before the chart's CSS, matching the original cascade order
 import { useSettings } from "../../hooks/useSettings";
-import { quitApp } from "../../lib/db";
+import { allSessions, backupTo, quitApp } from "../../lib/db";
+import { sessionsCsv } from "../../lib/format";
+import { downloadDir, join } from "@tauri-apps/api/path";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { comboFromPress, showCombo } from "../../lib/hotkey";
 import { ALARM_FACTOR, CHECK_IN_MIN, DEFAULT_SETTINGS, LONG_PAUSE_MIN, PAUSE_AFTER_MIN, STRETCH_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
@@ -331,6 +334,48 @@ function HotkeyRow({ settings, loaded, save }: SettingsApi) {
   );
 }
 
+/**
+ * Your data, out: every session as a CSV, or a full copy of the database. Both land in Downloads,
+ * named by date, and the file is shown in Explorer.
+ */
+function DataRow() {
+  const [note, setNote] = useState("");
+  const today = new Date().toLocaleDateString("sv"); // 2026-11-27
+  const done = (path: string) => {
+    setNote(`Saved to ${path}`);
+    revealItemInDir(path).catch(() => { });
+  };
+  const fail = (what: string) => (e: unknown) => {
+    console.error(what, e);
+    setNote(`Couldn't ${what}. Try again.`);
+  };
+  const exportCsv = () =>
+    allSessions()
+      .then((s) => invoke<string>("save_download", { name: `on-hours-sessions-${today}.csv`, contents: sessionsCsv(s) }))
+      .then(done, fail("export your sessions"));
+  const backup = async () => {
+    try {
+      const path = await join(await downloadDir(), `on-hours-backup-${today}-${Date.now() % 100000}.db`);
+      await backupTo(path);
+      done(path);
+    } catch (e) {
+      fail("back up the database")(e);
+    }
+  };
+  return (
+    <div className="row">
+      <span className="row-copy">
+        <span>Your data</span>
+        <small role="status">{note || "Sessions as a spreadsheet, or a full backup. Saved to Downloads."}</small>
+      </span>
+      <span className="hotkey-controls">
+        <button type="button" className="hotkey-reset" disabled={!isTauri()} onClick={() => void exportCsv()}>Export CSV</button>
+        <button type="button" className="hotkey-reset" disabled={!isTauri()} onClick={() => void backup()}>Back up</button>
+      </span>
+    </div>
+  );
+}
+
 function System(api: SettingsApi) {
   // Windows owns this setting (Settings → Apps → Startup), so we read it from there
   // instead of the DB: whatever Windows says is what the switch shows.
@@ -369,6 +414,7 @@ function System(api: SettingsApi) {
         />
       </label>
       <HotkeyRow {...api} />
+      <DataRow />
     </section>
   );
 }

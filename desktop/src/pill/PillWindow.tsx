@@ -4,7 +4,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { Menu } from "@tauri-apps/api/menu";
 import { useSettings } from "../hooks/useSettings";
 import { useWindowPosition } from "../hooks/useWindowPosition";
-import { fmtClock, fmtHM } from "../lib/format";
+import { fmtClock, fmtHM, fmtTime } from "../lib/format";
 import { pauseLevel } from "../lib/time";
 import { quitApp } from "../lib/db";
 import { fixture } from "../lib/fixture";
@@ -27,6 +27,9 @@ async function openSettings() {
 /** The right-click menu's break lengths, in minutes. */
 const BREAKS = [10, 15, 30];
 
+/** "Snooze reminders": how long a paused pill stays quiet. */
+const SNOOZE_MS = 30 * 60_000;
+
 /** How much bigger the alarm makes the pill. */
 const ALARM_ZOOM = 1.5;
 
@@ -48,8 +51,8 @@ function spokenStatus(m: PillModel) {
  * Right-click anywhere opens a menu (breaks, settings), whatever the theme and whether its button is shown.
  */
 function PillWindow() {
-  const { settings, loaded } = useSettings();
-  const { elapsed, running, done, target, known, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
+  const { settings, loaded, save } = useSettings();
+  const { elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
   const theme = themeById(settings.pillTheme);
   const width = pillWidth(theme, settings.pillSettingsButton);
   // In the app, wait for the saved settings so the pill never flashes the default theme first.
@@ -85,7 +88,8 @@ function PillWindow() {
     done,
     pausedMs,
     breakLeftMs,
-    pause: pauseLevel({ running, done, pausedMs, onBreak, sinceBreakMs }, settings),
+    // Judged by `nag`: the pause, counted from a return to the PC or a quiet start of the day.
+    pause: pauseLevel({ running, done: done || quiet, pausedMs: nag, onBreak, sinceBreakMs, away }, settings),
     ready,
     showSettingsButton: settings.pillSettingsButton,
     toggle: () => void toggle(),
@@ -100,9 +104,17 @@ function PillWindow() {
   // Goal (or today's stretch) met while working: confetti, a wiggle and a green flash.
   const celebrate = useCelebrate(elapsed, target, running, known);
 
+  // No reminders until `until`: "Snooze" (30 min) or "Done for today" (to the day's end, pausing a running timer).
+  const hush = (until: number) => void save("quiet_until", String(until), { ...settings, quietUntil: until });
+  const snooze = () => hush(Date.now() + SNOOZE_MS);
+  const doneToday = () => {
+    if (running && ready) void toggle();
+    hush(dayEnd);
+  };
+
   // The tray's "Start / Pause". A ref, so the listener always calls the current toggle.
-  const latest = useRef(m);
-  latest.current = m;
+  const latest = useRef({ ...m, snooze, doneToday });
+  latest.current = { ...m, snooze, doneToday };
   useEffect(() => {
     if (!isTauri()) return;
     const win = getCurrentWindow();
@@ -111,9 +123,11 @@ function PillWindow() {
     });
     // The tray's "Quit": close the running session first (lib.rs quits anyway if this hangs).
     const unlistenQuit = win.listen("tray-quit", () => void quitApp());
+    const offs = [win.listen("tray-snooze", () => latest.current.snooze()), win.listen("tray-done", () => latest.current.doneToday())];
     return () => {
       unlisten.then((off) => off());
       unlistenQuit.then((off) => off());
+      offs.forEach((o) => o.then((off) => off()));
     };
   }, []);
 
@@ -132,7 +146,13 @@ function PillWindow() {
       : BREAKS.map((min) => ({ text: `Take a ${min} min break`, enabled: ready, action: () => void takeBreak(min * 60_000) }));
     // Goal met: push some more today, whenever (the bubble only asks the moment it's met).
     const more = done && settings.stretchMs ? [{ text: `Push ${Math.round(settings.stretchMs / 60_000)} more min today`, enabled: ready, action: () => void stretch() }] : [];
-    Menu.new({ items: [...more, ...breaks, { item: "Separator" as const }, { text: "Settings", action: m.openSettings }] })
+    // Reminders: nothing to quiet once the goal is met. Quieted by hand: say until when, and undo.
+    const snoozed = Date.now() < settings.quietUntil;
+    const reminders = done ? [] : restDay ? [{ text: "Rest day: no reminders", enabled: false }]
+      : snoozed ? [{ text: `${settings.quietUntil >= dayEnd ? "Done for today" : `Snoozed till ${fmtTime(settings.quietUntil)}`}: remind me again`, action: () => hush(0) }]
+      : [{ text: "Snooze reminders 30 min", action: snooze }, { text: "Done for today", action: doneToday }];
+    const sep = { item: "Separator" as const };
+    Menu.new({ items: [...more, ...breaks, ...(reminders.length ? [sep, ...reminders] : []), sep, { text: "Settings", action: m.openSettings }] })
       .then((menu) => menu.popup())
       .catch((err) => console.error("could not open the pill menu", err));
   };

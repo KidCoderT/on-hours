@@ -37,6 +37,23 @@ export const holdMs = (now: number, lastPause: number | null, dayFrom: number, l
   return Math.max(0, now - since);
 };
 
+/** After the day rolls over with the app open, this long passes before a pause starts to nag. */
+export const ROLLOVER_QUIET_MS = 30 * 60_000;
+
+/**
+ * The time a pause is judged by (pauseLevel). The pause itself (`pausedMs`, what the pill shows),
+ * but counted from no earlier than:
+ * - `backAt`: the last return to the PC (unlock, input after an away-length idle, wake from sleep),
+ *   so sitting back down starts quiet and never with an instant alarm;
+ * - the day start plus ROLLOVER_QUIET_MS, when the pause runs from the day start (app open across it).
+ */
+export const nagMs = (now: number, pausedMs: number, backAt: number | null, dayFrom: number) => {
+  let since = now - pausedMs;
+  if (since <= dayFrom) since = dayFrom + ROLLOVER_QUIET_MS;
+  if (backAt !== null) since = Math.max(since, backAt);
+  return Math.max(0, now - since);
+};
+
 /** Time worked inside [from, to): sessions crossing the edges are trimmed, never split. */
 export const trimmedTotal = (sessions: Span[], from: number, to: number) =>
   sessions.reduce((sum, s) => sum + Math.max(0, Math.min(s.end_ms, to) - Math.max(s.start_ms, from)), 0);
@@ -47,18 +64,20 @@ export type PauseLevel = "none" | "short" | "nudge" | "long" | "alarm" | "break"
 /**
  * The pause stages: short, then nudge (5 min by default), long ("Long pause after"), and alarm at
  * "Alarm after" times the long pause (1.5 by default). Once today's goal is met nothing nags: the pause stays short.
+ * `done` also covers a quiet day (snoozed, done for today, a rest day). `away`: nobody's at the PC,
+ * so the alarm waits at long; it would only shake an empty desk.
  * A planned break never nags. After one, the stages count from the break's end, starting at nudge:
  * the break was the rest, so going over it nags right away, but the break itself is never held against you.
  */
 export function pauseLevel(
-  p: { running: boolean; done: boolean; pausedMs: number; onBreak: boolean; sinceBreakMs: number | null },
+  p: { running: boolean; done: boolean; pausedMs: number; onBreak: boolean; sinceBreakMs: number | null; away?: boolean },
   s: { nudgeMs: number; longPauseMs: number; alarmFactor: number },
 ): PauseLevel {
   if (p.running) return "none";
   if (p.onBreak) return "break";
   if (p.done) return "short";
   const ms = p.sinceBreakMs ?? p.pausedMs;
-  if (ms >= s.alarmFactor * s.longPauseMs) return "alarm";
+  if (ms >= s.alarmFactor * s.longPauseMs) return p.away ? "long" : "alarm";
   if (ms >= s.longPauseMs) return "long";
   if (ms >= s.nudgeMs || p.sinceBreakMs !== null) return "nudge";
   return "short";

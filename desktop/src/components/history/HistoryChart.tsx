@@ -7,11 +7,11 @@ import WeekBars from "./WeekBars";
 import WeekTimeline from "./WeekTimeline";
 import "./history.css";
 
-type Props = { goalMs: number; dayStart: string; weekStart: number };
+type Props = { goalMs: number; dayStart: string; weekStart: number; restDays: number[] };
 type View = "totals" | "timeline";
 const VIEWS: View[] = ["totals", "timeline"];
 
-function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
+function HistoryChart({ goalMs, dayStart, weekStart, restDays }: Props) {
   const [offset, setOffset] = useState(0); // weeks back from this week
   const [picked, setPicked] = useState<number | null>(null);
   const wheelLock = useRef(0);
@@ -20,7 +20,7 @@ function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
     localStorage.setItem("history-view", v);
     setView(v);
   };
-  const { first, days, elapsed, total, weekPct, maxOffset, worked } = useWeekHistory(offset, dayStart, weekStart);
+  const { first, days, elapsed, total, weekPct, maxOffset, worked } = useWeekHistory(offset, dayStart, weekStart, restDays);
 
   const active = picked ?? elapsed - 1;
   const day = days[Math.max(0, active)];
@@ -43,7 +43,9 @@ function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
 
   const range = `${fmtDate(first, { month: "short", day: "numeric" })} – ${fmtDate(addDays(first, 6), { month: "short", day: "numeric" })}`;
   // The week's verdict, from the Ledger: only days that are over count. Today is still open.
-  const closed = days.filter((d) => !d.future && !d.today);
+  // A rest day counts only if it was kept anyway: missing one is the plan, not a miss.
+  const off = (d: (typeof days)[number]) => d.rest && d.ms < goalMs;
+  const closed = days.filter((d) => !d.future && !d.today && !off(d));
   const kept = closed.filter((d) => d.ms >= goalMs).length;
 
   return (
@@ -92,10 +94,11 @@ function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
 
       <div className="day-detail" aria-live="polite">
         <span className="day">
-          <span className="dot" aria-hidden="true" style={{ "--dot": day.ms >= goalMs ? "var(--green)" : "var(--red)" } as React.CSSProperties} />
+          <span className="dot" aria-hidden="true" style={{ "--dot": day.ms >= goalMs ? "var(--green)" : off(day) ? "var(--muted)" : "var(--red)" } as React.CSSProperties} />
           {day.today ? "Today" : fmtDate(day.date, { weekday: "short", month: "short", day: "numeric" })}
         </span>
         <span className="num">{fmtHM(day.ms)}</span>
+        {off(day) && <span className="vs">rest day</span>}
         <span className={`delta ${diff >= 0 ? "up" : "down"}`}>
           {diff === 0 ? "=" : diff > 0 ? "▲" : "▼"} {fmtHM(Math.abs(diff))}
           <span className="vs"> vs {prevName}</span>

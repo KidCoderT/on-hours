@@ -99,6 +99,9 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
         app,
         &[
             &MenuItem::with_id(app, "toggle", "Start / Pause", true, None::<&str>)?,
+            &MenuItem::with_id(app, "snooze", "Snooze reminders 30 min", true, None::<&str>)?,
+            &MenuItem::with_id(app, "done", "Done for today", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "pill", "Show pill", true, None::<&str>)?,
             &MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
@@ -115,6 +118,13 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
             // The timer lives in the pill's webview, so ask it to toggle.
             "toggle" => {
                 let _ = app.emit_to("main", "tray-toggle", ());
+            }
+            // Reminders live in the pill too: it saves them and pauses for "Done for today".
+            "snooze" => {
+                let _ = app.emit_to("main", "tray-snooze", ());
+            }
+            "done" => {
+                let _ = app.emit_to("main", "tray-done", ());
             }
             // Show only, never hide: a hidden pill is a forgotten timer.
             "pill" => {

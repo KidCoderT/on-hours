@@ -14,7 +14,7 @@ const slices = (spans: Span[], from: number, to: number) =>
  * Worked time per day for the week `offset` weeks back, plus the week before it for deltas.
  * Also when the PC was on, the planned breaks, and any stretch past the goal.
  */
-export function useWeekHistory(offset: number, dayStart: string, weekStart: number) {
+export function useWeekHistory(offset: number, dayStart: string, weekStart: number, restDays: number[] = []) {
   const today = startOfDay(workDayOf(new Date(), dayStart));
   const thisWeekStart = weekStartOf(today, weekStart);
   const first = addDays(thisWeekStart, -7 * offset);
@@ -74,7 +74,7 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
     const date = addDays(first, i);
     const { from, to } = dayRange(date, dayStart);
     return {
-      date, from, ms: worked(date), future: date > today, today: +date === +today,
+      date, from, ms: worked(date), future: date > today, today: +date === +today, rest: restDays.includes(date.getDay()),
       spans: slices(live, from, to),
       on: slices(awakeLive, from, to),
       breaks: slices(breaksLive, from, to),

@@ -4,7 +4,7 @@ import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
 import { addExtra, clearExtra, endBreak, extraFor, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
-import { awayAction, dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
+import { awayAction, dayRange, holdMs, nagMs, pauseLevel, ROLLOVER_QUIET_MS, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
 const H = 3_600_000;
 const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, end_ms: end, open: 0 });
@@ -291,4 +291,34 @@ test("\"Stretch by\": 30 min by default, 0 turns the question off, out of range 
   expect(parseSettings({ stretch_min: "0" }).stretchMs).toBe(0);
   expect(parseSettings({ stretch_min: "45" }).stretchMs).toBe(45 * M);
   expect(["4", "121", "2.5", "x"].map((v) => parseSettings({ stretch_min: v }).stretchMs)).toEqual([30 * M, 30 * M, 30 * M, 30 * M]);
+});
+
+test("nag clock: a return to the PC or a new day starts the stages over; the pause itself is untouched", () => {
+  const day = new Date(2026, 10, 4).getTime();
+  const now = day + 9 * H;
+  expect(nagMs(now, H, null, day)).toBe(H); // a plain pause
+  expect(nagMs(now, H, now - 60_000, day)).toBe(60_000); // back a minute ago: judged from the return
+  expect(nagMs(now, H, now - 2 * H, day)).toBe(H); // a return before the pause changes nothing
+  // App open across the day start, no pause yet today: quiet for the first half hour.
+  expect(nagMs(day + 20 * 60_000, 20 * 60_000, null, day)).toBe(0);
+  expect(nagMs(day + 9 * H, 9 * H, null, day)).toBe(9 * H - ROLLOVER_QUIET_MS);
+  expect(nagMs(day + 9 * H, 9 * H, day + 8.9 * H, day)).toBeCloseTo(0.1 * H); // back this morning: from then
+});
+
+test("pause stages: quiet days never nag, and nobody at the PC holds the alarm at long", () => {
+  const M = 60_000;
+  const s = { nudgeMs: 5 * M, longPauseMs: 20 * M, alarmFactor: 1.5 };
+  const p = { running: false, done: false, pausedMs: 90 * M, onBreak: false, sinceBreakMs: null };
+  expect(pauseLevel(p, s)).toBe("alarm");
+  expect(pauseLevel({ ...p, away: true }, s)).toBe("long");
+  expect(pauseLevel({ ...p, away: true, pausedMs: 21 * M }, s)).toBe("long");
+  expect(pauseLevel({ ...p, away: true, pausedMs: 6 * M }, s)).toBe("nudge");
+});
+
+test("rest days and quiet-until parse; junk is dropped", () => {
+  expect(parseSettings({}).restDays).toEqual([]);
+  expect(parseSettings({ rest_days: "6,0,6, 3,x,9," }).restDays).toEqual([0, 3, 6]);
+  expect(parseSettings({ quiet_until: "1764000000000" }).quietUntil).toBe(1764000000000);
+  expect(parseSettings({ quiet_until: "-5" }).quietUntil).toBe(0);
+  expect(parseSettings({ quiet_until: "soon" }).quietUntil).toBe(0);
 });

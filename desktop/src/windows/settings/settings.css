@@ -438,3 +438,9 @@ html:has(.settings) #root {
   outline: 2px solid var(--icon);
   outline-offset: 2px;
 }
+
+.rest-days span {
+  padding: 0;
+  width: 26px;
+  text-align: center;
+}

@@ -6,7 +6,7 @@ import { addExtra, clearExtra, endBreak, extraFor, heartbeat, lastBreak, lastClo
 import { fixture } from "../lib/fixture";
 import { fmtTime } from "../lib/format";
 import type { Settings } from "../lib/settings";
-import { awayAction, dayRange, holdMs, trimmedTotal, workDayOf } from "../lib/time";
+import { awayAction, dayRange, holdMs, nagMs, trimmedTotal, workDayOf } from "../lib/time";
 
 const HEARTBEAT_MS = 30_000;
 /** How often a running timer (or a waiting bubble) checks whether anyone is at the PC (away.rs). */
@@ -46,6 +46,9 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const [brk, setBrk] = useState<{ start: number; end: number } | null>(null); // the latest break
   const [synced, setSynced] = useState(0); // bump to re-read today's total from the DB
   const [saveFailed, setSaveFailed] = useState(false); // the last session write failed: the pill shows it
+  const [away, setAway] = useState(false); // paused and nobody at the PC: locked, or idle for "Pause after"
+  const [backAt, setBackAt] = useState<number | null>(null); // the last return to the PC while paused
+  const awayRef = useRef(false);
   const bubbleRef = useRef<Bubble | null>(null);
   const [bubbleKind, setBubbleKind] = useState<Bubble["kind"] | null>(null); // bubbleRef's kind, to drive effects
   const busy = useRef(false); // ignore double-clicks while a DB write is in flight
@@ -54,7 +57,11 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
 
   // Play stays disabled until we know the real goal/day-start and whether a session is open.
   const ready = recovered && settingsLoaded;
-  const today = dayRange(workDayOf(new Date(now), settings.dayStart), settings.dayStart);
+  const workDay = workDayOf(new Date(now), settings.dayStart);
+  const today = dayRange(workDay, settings.dayStart);
+  // No reminders today: a rest day, or snoozed / done for today from the menus.
+  const restDay = settings.restDays.includes(workDay.getDay());
+  const quiet = restDay || now < settings.quietUntil;
   const running = openStart !== null;
   runningRef.current = running;
   // A session that began before today's start only counts from the day boundary.
@@ -68,6 +75,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   // Today's totals are loaded: a jump in `elapsed` from here on is real time, not the load.
   const known = ready && loadedDay === today.from;
   const pausedMs = running ? 0 : holdMs(now, pausedSince, today.from, launchedAt);
+  const nag = running ? 0 : nagMs(now, pausedMs, backAt, today.from);
   const onBreak = !running && brk !== null && brk.start <= now && now < brk.end;
   // Rounded up to the second, so a 10 min break starts at 0:10:00 and ends at 0:00:01, never 0:00:00.
   const breakLeftMs = onBreak ? Math.ceil((brk.end - now) / 1000) * 1000 : 0;
@@ -131,6 +139,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
       const t = Date.now();
       const slept = t - lastTick.current >= STALE_MS;
       lastTick.current = t;
+      if (slept && !runningRef.current) setBackAt(t); // woke from sleep while paused: back at the PC
       if (slept && runningRef.current) void beat();
       else if (!busy.current) setNow(t);
     }, 1000);
@@ -266,9 +275,15 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     }
   };
 
-  /** One look at the PC: every 2s while running or while the bubble is up. */
+  /** One look at the PC, every 2s. */
   const look = async (c: AwayCheck) => {
     const b = bubbleRef.current;
+    // Paused: is anyone here? Away means locked or idle as long as an auto-pause takes. A short idle
+    // isn't away: reading or watching a video while paused is exactly what the nagging is for.
+    const gone = !runningRef.current && (c.locked || (settings.pauseAfterMs > 0 && c.idle_ms >= settings.pauseAfterMs));
+    if (awayRef.current && !gone && !runningRef.current) setBackAt(Date.now());
+    awayRef.current = gone;
+    setAway(gone);
     if (b?.kind === "stretch" && Date.now() - b.shownAt > COUNT_WAIT_MS) say(null, "quiet"); // no answer: not today
     if (runningRef.current) {
       const action = awayAction({ idleMs: c.idle_ms, locked: c.locked }, settings);
@@ -371,18 +386,13 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     clearExtra(today.from).catch((e) => console.error("could not drop today's stretch", e));
   }, [known, settings.dailyGoalMs]);
 
-  // Look while running, and while a bubble waits for them to come back.
+  // Look all the time: while running for the away bubbles, while paused for whether anyone's here.
   // ponytail: a restart while the bubble is up drops it and paused time stays out; persist it if that bites.
-  const [watching, setWatching] = useState(false);
   useEffect(() => {
-    const on = running || watching;
-    if (!on || !ready || !isTauri()) return;
-    const id = setInterval(() => {
-      void checkAway().then((c) => c && latest.current.look(c));
-      setWatching(bubbleRef.current !== null);
-    }, AWAY_POLL_MS);
+    if (!ready || !isTauri()) return;
+    const id = setInterval(() => void checkAway().then((c) => c && latest.current.look(c)), AWAY_POLL_MS);
     return () => clearInterval(id);
-  }, [running, watching, ready]);
+  }, [ready]);
 
   // The bubble's answers, and keeping it by the pill when the pill moves or grows.
   useEffect(() => {
@@ -399,10 +409,10 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     const idle = async () => { };
     return {
       elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs,
-      target: settings.dailyGoalMs + ("extraMs" in fixture ? fixture.extraMs : 0), known: true,
+      target: settings.dailyGoalMs + ("extraMs" in fixture ? fixture.extraMs : 0), known: true, nag: fixture.pausedMs, away: false, quiet: false, restDay: false, dayEnd: 0,
       onBreak: left > 0, breakLeftMs: left, sinceBreakMs: null, ready: true, saveFailed: false, toggle: idle, takeBreak: idle, endBreakNow: idle, stretch: idle,
     };
   }
 
-  return { elapsed, running, done, target, known, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch };
+  return { elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd: today.to, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch };
 }

@@ -19,6 +19,33 @@ const WEEKDAYS = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 7 + i).to
 
 type SettingsApi = ReturnType<typeof useSettings>;
 
+const WEEKDAYS_NARROW = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 7 + i).toLocaleDateString(undefined, { weekday: "narrow" }));
+
+/** Rest days: no reminders, and a missed one isn't held against the week. Off by default. */
+function RestDaysRow({ settings, save }: SettingsApi) {
+  const order = Array.from({ length: 7 }, (_, i) => (settings.weekStart + i) % 7);
+  const flip = (d: number, on: boolean) => {
+    const next = on ? [...settings.restDays, d].sort() : settings.restDays.filter((x) => x !== d);
+    save("rest_days", next.join(","), { ...settings, restDays: next });
+  };
+  return (
+    <div className="row">
+      <span className="row-copy">
+        <span id="rest-label">Rest days</span>
+        <small>{settings.restDays.length ? "No reminders, and not held against the week." : "None: every day nags until the goal."}</small>
+      </span>
+      <div className="segmented rest-days" role="group" aria-labelledby="rest-label">
+        {order.map((d) => (
+          <label key={d} title={WEEKDAYS[d]}>
+            <input type="checkbox" className="sr-only" aria-label={WEEKDAYS[d]} checked={settings.restDays.includes(d)} onChange={(e) => flip(d, e.target.checked)} />
+            <span>{WEEKDAYS_NARROW[d]}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * A number field that may be mid-edit ("" or "1.") without saving. Shows the saved value once
  * settings load; saves only values `parse` accepts.
@@ -213,6 +240,7 @@ function DailyRhythm(api: SettingsApi) {
           <span aria-hidden="true">×</span>
         </span>
       </label>
+      <RestDaysRow {...api} />
       <IdleRows {...api} />
     </section>
   );
@@ -412,7 +440,7 @@ function SettingsWindow() {
         <h1>On Hours</h1>
       </header>
 
-      <HistoryChart goalMs={settings.dailyGoalMs} dayStart={settings.dayStart} weekStart={settings.weekStart} />
+      <HistoryChart goalMs={settings.dailyGoalMs} dayStart={settings.dayStart} weekStart={settings.weekStart} restDays={settings.restDays} />
 
       <h2 className="back-matter">Preferences</h2>
       <PillPrefs {...settingsApi} />

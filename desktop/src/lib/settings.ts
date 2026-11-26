@@ -18,6 +18,8 @@ export type Settings = {
   pauseAfterMs: number; // no input this long while running: pause at the last input. 0 = off
   stretchMs: number; // goal met while working: offer to push this much more today. 0 = never ask
   hotkey: string;
+  restDays: number[]; // weekdays (0 = Sunday) with no reminders; a missed one isn't held against the week
+  quietUntil: number; // ms: "Snooze" / "Done for today" from the menus. ponytail: app state kept in the settings table, for its sync and restart survival
 };
 
 export type SettingKey =
@@ -33,7 +35,9 @@ export type SettingKey =
   | "check_in_min"
   | "pause_after_min"
   | "stretch_min"
-  | "hotkey";
+  | "hotkey"
+  | "rest_days"
+  | "quiet_until";
 
 const MIN = 60_000;
 
@@ -51,6 +55,8 @@ export const DEFAULT_SETTINGS: Settings = {
   pauseAfterMs: 20 * MIN,
   stretchMs: 30 * MIN,
   hotkey: "Ctrl+Alt+Shift+O",
+  restDays: [],
+  quietUntil: 0,
 };
 
 /** Accepted range for the long-pause threshold, in minutes. */
@@ -109,5 +115,7 @@ export function parseSettings(rows: Record<string, string | undefined>): Setting
     pauseAfterMs: minutesOrOff(rows.pause_after_min, PAUSE_AFTER_MIN, d.pauseAfterMs),
     stretchMs: minutesOrOff(rows.stretch_min, STRETCH_MIN, d.stretchMs),
     hotkey: rows.hotkey === undefined ? d.hotkey : rows.hotkey.trim(), // a saved "" means the user turned it off
+    restDays: [...new Set((rows.rest_days ?? "").split(",").filter((x) => /^[0-6]$/.test(x.trim())).map(Number))].sort(),
+    quietUntil: int(rows.quiet_until, 0, Number.MAX_SAFE_INTEGER, 0),
   };
 }

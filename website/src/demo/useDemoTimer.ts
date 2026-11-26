@@ -5,8 +5,9 @@ import type { PillModel } from "@app/themes/types";
 export const HOUR = 3_600_000;
 const MIN = 60_000;
 
-/** breakLeftMs > 0: on a planned break. afterBreak: the break ran out, so the pause nags from the nudge on. */
-export type DemoState = { elapsedMs: number; running: boolean; pausedMs: number; breakLeftMs?: number; afterBreak?: boolean };
+/** breakLeftMs > 0: on a planned break. afterBreak: the break ran out, so the pause nags from the nudge on.
+ * extraMs: today's stretch past the goal (said yes to when the goal was met). */
+export type DemoState = { elapsedMs: number; running: boolean; pausedMs: number; breakLeftMs?: number; afterBreak?: boolean; extraMs?: number };
 
 type Options = {
   goalMs?: number;
@@ -44,14 +45,15 @@ export function useDemoTimer(initial: DemoState, { goalMs = 4 * HOUR, longPauseM
 
   const toggle = () => setState((s) => ({ ...s, running: !s.running, pausedMs: 0, breakLeftMs: 0, afterBreak: false }));
   const takeBreak = (ms: number) => setState((s) => ({ ...s, running: false, pausedMs: 0, breakLeftMs: ms, afterBreak: false }));
-  const { elapsedMs, running, pausedMs, breakLeftMs = 0, afterBreak = false } = state;
+  const { elapsedMs, running, pausedMs, breakLeftMs = 0, afterBreak = false, extraMs = 0 } = state;
   const done = elapsedMs >= goalMs;
+  const targetMs = goalMs + extraMs;
   const onBreak = !running && breakLeftMs > 0;
   const model: PillModel = {
     elapsedMs,
     goalMs,
-    targetMs: goalMs,
-    progress: Math.min(1, elapsedMs / goalMs),
+    targetMs,
+    progress: Math.min(1, elapsedMs / targetMs),
     running,
     done,
     pausedMs,

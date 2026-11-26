@@ -66,6 +66,7 @@ export function Week() {
             <li>A timeline of every session</li>
             <li>Time the PC was on against time you worked</li>
             <li>Your breaks, marked on the timeline</li>
+            <li>Days you stretched past the goal</li>
             <li>This week compared with last week</li>
           </ul>
         </Reveal>

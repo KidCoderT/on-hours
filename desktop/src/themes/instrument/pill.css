@@ -77,6 +77,8 @@
 /* LCD annunciator: mode word over the number that matters next. */
 .pill[data-theme="instrument"] .annunciator { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; font-size: 10px; line-height: 11px; letter-spacing: 0.08em; }
 .pill[data-theme="instrument"] .annunciator .word { color: var(--lit); font-weight: 700; text-transform: uppercase; }
+/* On a stretch: kept (the green readout), but still going (the amber MET). */
+.pill[data-theme="instrument"][data-stretch="true"] .annunciator .word { color: var(--amber); }
 .pill[data-theme="instrument"] .annunciator .sub { color: var(--muted); font-weight: 500; }
 
 /* Idle and alarm: the colons blink at 1 Hz. The first frame is lit, so stills always show the colon. */

@@ -193,6 +193,12 @@ fn migrations() -> Vec<tauri_plugin_sql::Migration> {
             sql: include_str!("../migrations/0006_awake.sql"),
             kind: tauri_plugin_sql::MigrationKind::Up,
         },
+        tauri_plugin_sql::Migration {
+            version: 7,
+            description: "stretch goal",
+            sql: include_str!("../migrations/0007_stretch.sql"),
+            kind: tauri_plugin_sql::MigrationKind::Up,
+        },
     ]
 }
 

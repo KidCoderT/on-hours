@@ -50,7 +50,7 @@
 .pill[data-theme="baseline"][data-running="true"] { --light: var(--yellow); --rim: var(--yellow-rim); }
 .pill[data-theme="baseline"][data-done="true"] { --light: var(--green); --rim: var(--green-rim); }
 /* Working on a stretch: kept (green), and still at it (yellow). */
-.pill[data-theme="baseline"][data-stretch="true"][data-running="true"] { --light: linear-gradient(135deg, var(--green) 50%, var(--yellow) 50%); --rim: var(--green-rim); }
+.pill[data-theme="baseline"][data-stretch="true"][data-running="true"] { --light: linear-gradient(135deg, var(--green) 50%, var(--yellow) 50%); --rim: transparent; }
 .pill[data-theme="baseline"][data-pause="break"] { --light: var(--accent); --rim: color-mix(in srgb, var(--accent) 80%, #000); }
 
 .pill[data-theme="baseline"] .light {

@@ -42,6 +42,9 @@
   box-shadow: inset 0 2px 0 color-mix(in srgb, var(--pc-on) 70%, transparent);
 }
 .bar-break { z-index: 2; width: 24px; background: var(--yellow); }
+/* A stretch past the goal: a mark at goal + stretch, in ink so it reads on the green bar; solid once made. */
+.stretch-mark { position: absolute; z-index: 3; left: 50%; width: 36px; height: 0; transform: translateX(-50%); border-top: 2px dashed var(--ink); }
+.stretch-mark[data-made="true"] { border-top-style: solid; }
 .col[data-active="true"]:not([data-met="true"]) .bar { background: color-mix(in srgb, var(--ink) 38%, var(--surface)); }
 .xlabels { display: flex; margin: 12px 0 0 var(--gutter); line-height: 18px; }
 .xlabels span { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }

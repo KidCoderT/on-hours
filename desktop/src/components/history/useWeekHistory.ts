@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
-import { awakeBetween, breaksBetween, firstSessionStart, sessionsBetween, STALE_MS, type Session } from "../../lib/db";
+import { awakeBetween, breaksBetween, extrasBetween, firstSessionStart, sessionsBetween, STALE_MS, type Session } from "../../lib/db";
 import { fixture, fixtureAwake, fixtureBreaks, fixtureSessions } from "../../lib/fixture";
 import { addDays, dayRange, weekStartOf, startOfDay, trimmedTotal, WEEK, workDayOf } from "../../lib/time";
 
@@ -12,7 +12,7 @@ const slices = (spans: Span[], from: number, to: number) =>
 
 /**
  * Worked time per day for the week `offset` weeks back, plus the week before it for deltas.
- * Also when the PC was on and the planned breaks, for the timeline.
+ * Also when the PC was on, the planned breaks, and any stretch past the goal.
  */
 export function useWeekHistory(offset: number, dayStart: string, weekStart: number) {
   const today = startOfDay(workDayOf(new Date(), dayStart));
@@ -21,6 +21,7 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
   const [sessions, setSessions] = useState<Session[]>(() => (fixture ? fixtureSessions(Date.now()) : []));
   const [awake, setAwake] = useState<Span[]>(() => (fixture ? fixtureAwake(Date.now()) : []));
   const [breaks, setBreaks] = useState<Span[]>(() => (fixture ? fixtureBreaks(Date.now()) : []));
+  const [extras, setExtras] = useState<Map<number, number>>(() => new Map()); // each day's stretch, by its start
   const [maxOffset, setMaxOffset] = useState(fixture ? 1 : 0); // can't page back past the first session
 
   // Load this week plus the week before it (for "vs last week / vs yesterday").
@@ -41,6 +42,9 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
         .catch(fail);
       breaksBetween(from, to)
         .then((s) => alive && setBreaks(s))
+        .catch(fail);
+      extrasBetween(from, to)
+        .then((x) => alive && setExtras(x))
         .catch(fail);
       firstSessionStart()
         .then((t) => alive && setMaxOffset(t ? Math.round((+thisWeekStart - +weekStartOf(new Date(t), weekStart)) / WEEK) : 0))
@@ -76,6 +80,7 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
       breaks: slices(breaksLive, from, to),
       onMs: trimmedTotal(awakeLive, from, to),
       breakMs: trimmedTotal(breaksLive, from, to),
+      extraMs: extras.get(from) ?? 0, // a stretch said yes to: the goal plus this, just that day
     };
   });
 

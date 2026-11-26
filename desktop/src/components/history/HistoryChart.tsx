@@ -109,6 +109,11 @@ function HistoryChart({ goalMs, dayStart, weekStart }: Props) {
           {day.breakMs > 0 && <> · breaks {fmtHM(day.breakMs)}</>}
         </p>
       )}
+      {day.extraMs > 0 && (
+        <p className="usage">
+          Stretched {fmtHM(day.extraMs)} past the goal · {day.ms >= goalMs + day.extraMs ? "made it" : `${fmtHM(goalMs + day.extraMs - day.ms)} short`}
+        </p>
+      )}
       {closed.length > 0 && (
         <p className="memo">
           {kept} of {closed.length} {closed.length === 1 ? "day" : "days"} kept · goal {fmtHM(goalMs)} a day

@@ -16,6 +16,7 @@ export type Settings = {
   alarmFactor: number; // the alarm comes at this many long pauses
   checkInMs: number; // no input this long while running: the bubble asks "still there?". 0 = off
   pauseAfterMs: number; // no input this long while running: pause at the last input. 0 = off
+  stretchMs: number; // goal met while working: offer to push this much more today. 0 = never ask
   hotkey: string;
 };
 
@@ -31,6 +32,7 @@ export type SettingKey =
   | "alarm_factor"
   | "check_in_min"
   | "pause_after_min"
+  | "stretch_min"
   | "hotkey";
 
 const MIN = 60_000;
@@ -47,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   alarmFactor: 1.5,
   checkInMs: 10 * MIN,
   pauseAfterMs: 20 * MIN,
+  stretchMs: 30 * MIN,
   hotkey: "Ctrl+Alt+Shift+O",
 };
 
@@ -66,6 +69,8 @@ export const ALARM_FACTOR = { min: 1.25, max: 5 };
 /** Accepted ranges for the idle settings, in minutes. 0 turns either off. "Pause after" must come later. */
 export const CHECK_IN_MIN = { min: 2, max: 60 };
 export const PAUSE_AFTER_MIN = { min: 5, max: 120 };
+/** Accepted range for "Stretch by", in minutes. 0 turns the question off. */
+export const STRETCH_MIN = { min: 5, max: 120 };
 /** A whole number of minutes in range, or 0 (off), or the fallback. */
 const minutesOrOff = (raw: string | undefined, r: { min: number; max: number }, fallback: number) =>
   raw?.trim() === "0" ? 0 : int(raw, r.min, r.max, fallback / MIN) * MIN;
@@ -102,6 +107,7 @@ export function parseSettings(rows: Record<string, string | undefined>): Setting
     alarmFactor: num(rows.alarm_factor, ALARM_FACTOR.min, ALARM_FACTOR.max, d.alarmFactor),
     checkInMs: minutesOrOff(rows.check_in_min, CHECK_IN_MIN, d.checkInMs),
     pauseAfterMs: minutesOrOff(rows.pause_after_min, PAUSE_AFTER_MIN, d.pauseAfterMs),
+    stretchMs: minutesOrOff(rows.stretch_min, STRETCH_MIN, d.stretchMs),
     hotkey: rows.hotkey === undefined ? d.hotkey : rows.hotkey.trim(), // a saved "" means the user turned it off
   };
 }

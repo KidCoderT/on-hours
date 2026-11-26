@@ -53,5 +53,12 @@ button, input, select { font: inherit; }
 @media (prefers-reduced-motion: reduce) { :root.theme-ready { transition: none; } }
 /* The pill shell (pill/PillWindow.tsx) after a failed save: a static ring, the same in every theme. */
 .pill-shell[data-error] > .pill { outline: 2px solid var(--red); outline-offset: -2px; }
+/* Goal met (pill/useCelebrate.ts): a green ring flashes from the pill's edge, the same in every theme. */
+.pill-shell[data-celebrate] > .pill { animation: celebrate 1.2s ease-out; }
+@keyframes celebrate {
+  0% { box-shadow: inset 0 0 0 3px var(--green), 0 0 0 0 var(--green); }
+  100% { box-shadow: inset 0 0 0 3px transparent, 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .pill-shell[data-celebrate] > .pill { animation: none; } }
 /* The alarm grows the pill: useFitWindow.ts sets --pill-zoom as it resizes the window, frame by frame. */
 .pill-shell { zoom: var(--pill-zoom, 1); }

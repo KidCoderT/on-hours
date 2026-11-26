@@ -30,7 +30,8 @@ const DAYS = Array.from({ length: 7 }, (_, i) => {
   const on = spans.length ? [{ start: spans[0].start - 30 * MIN, end: spans[spans.length - 1].end + HOUR }] : [];
   const breaks = spans.length ? [{ start: spans[0].end, end: spans[0].end + 15 * MIN }] : [];
   const len = (xs: typeof spans) => xs.reduce((s, x) => s + x.end - x.start, 0);
-  return { date, from, spans, ms, future: i > TODAY, today: i === TODAY, on, breaks, onMs: len(on), breakMs: len(breaks) };
+  const extraMs = i === 2 ? 30 * MIN : 0; // Wednesday: goal met, then a 30 min stretch, made
+  return { date, from, spans, ms, future: i > TODAY, today: i === TODAY, on, breaks, onMs: len(on), breakMs: len(breaks), extraMs };
 });
 const TOTAL = DAYS.reduce((s, d) => s + d.ms, 0);
 const CLOSED = DAYS.slice(0, TODAY);
@@ -65,6 +66,7 @@ export function Week() {
             <li>A timeline of every session</li>
             <li>Time the PC was on against time you worked</li>
             <li>Your breaks, marked on the timeline</li>
+            <li>Days you stretched past the goal</li>
             <li>This week compared with last week</li>
           </ul>
         </Reveal>
@@ -102,6 +104,11 @@ export function Week() {
               <p className="usage">
                 PC on {fmtHM(day.onMs)} · focused {fmtHM(day.ms)} ({Math.round((day.ms / day.onMs) * 100)}%)
                 {day.breakMs > 0 && <> · breaks {fmtHM(day.breakMs)}</>}
+              </p>
+            )}
+            {day.extraMs > 0 && (
+              <p className="usage">
+                Stretched {fmtHM(day.extraMs)} past the goal · {day.ms >= GOAL + day.extraMs ? "made it" : `${fmtHM(GOAL + day.extraMs - day.ms)} short`}
               </p>
             )}
             <p className="memo">{KEPT} of {CLOSED.length} days kept · goal {fmtHM(GOAL)} a day</p>

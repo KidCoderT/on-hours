@@ -8,7 +8,7 @@ import "./settings.css"; // before the chart's CSS, matching the original cascad
 import { useSettings } from "../../hooks/useSettings";
 import { quitApp } from "../../lib/db";
 import { comboFromPress, showCombo } from "../../lib/hotkey";
-import { ALARM_FACTOR, CHECK_IN_MIN, DEFAULT_SETTINGS, LONG_PAUSE_MIN, PAUSE_AFTER_MIN } from "../../lib/settings";
+import { ALARM_FACTOR, CHECK_IN_MIN, DEFAULT_SETTINGS, LONG_PAUSE_MIN, PAUSE_AFTER_MIN, STRETCH_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
 import HistoryChart from "../../components/history/HistoryChart";
 import { themeById } from "../../themes/registry";
@@ -117,6 +117,28 @@ function IdleRows({ settings, loaded, save }: SettingsApi) {
   );
 }
 
+/** "Stretch by": when the goal is met while working, the bubble offers this much more for today. */
+function StretchRow({ settings, loaded, save }: SettingsApi) {
+  const mins = settings.stretchMs / 60_000;
+  const parse = (t: string) => (t === "0" ? 0 : /^[0-9]+$/.test(t) && Number(t) >= STRETCH_MIN.min && Number(t) <= STRETCH_MIN.max ? Number(t) : null);
+  const [text, onText] = useNumberField(mins, loaded, parse, (n) => save("stretch_min", String(n), { ...settings, stretchMs: n * 60_000 }));
+  const bad = text !== "" && parse(text) === null;
+  return (
+    <label className="row">
+      <span className="row-copy">
+        <span>Stretch by</span>
+        <small className={bad ? "row-error" : undefined}>
+          {bad ? `${STRETCH_MIN.min}–${STRETCH_MIN.max} min, or 0 for off.` : mins ? "Goal met while working: offers this much more, just for today." : "Off. Meeting the goal never asks for more."}
+        </small>
+      </span>
+      <span className="field">
+        <input aria-label="Stretch by, in minutes, 0 for off" type="number" min={0} max={STRETCH_MIN.max} step={5} value={text} onChange={(e) => onText(e.target.value)} />
+        <span aria-hidden="true">min</span>
+      </span>
+    </label>
+  );
+}
+
 function DailyRhythm(api: SettingsApi) {
   const { settings, loaded, save } = api;
   const [goalText, onGoal] = useNumberField(
@@ -157,6 +179,7 @@ function DailyRhythm(api: SettingsApi) {
           <span aria-hidden="true">h</span>
         </span>
       </label>
+      <StretchRow {...api} />
       <label className="row">
         <span className="row-copy"><span>Day starts at</span><small>When a new day begins.</small></span>
         <input aria-label="Day starts at" type="time" value={settings.dayStart} onChange={(e) => onDayStart(e.target.value)} />

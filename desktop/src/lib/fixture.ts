@@ -8,9 +8,13 @@ const MIN = 60_000;
 
 /** Pill states the harness captures. Elapsed is today's total; pausedMs is time since the last pause. */
 export const PILL_STATES = {
+  fresh: { elapsedMs: 0, running: false, pausedMs: 0 },
   "running-under": { elapsedMs: 1 * HOUR + 12 * MIN + 36_000, running: true, pausedMs: 0 },
   "running-near": { elapsedMs: 3 * HOUR + 41 * MIN + 5_000, running: true, pausedMs: 0 },
   "running-over": { elapsedMs: 4 * HOUR + 37 * MIN + 12_000, running: true, pausedMs: 0 },
+  "running-stretch": { elapsedMs: 4 * HOUR + 12 * MIN + 3_000, running: true, pausedMs: 0, extraMs: 30 * MIN },
+  "paused-met": { elapsedMs: 4 * HOUR + 37 * MIN + 12_000, running: false, pausedMs: 40 * MIN },
+  "paused-stretch": { elapsedMs: 4 * HOUR + 12 * MIN + 3_000, running: false, pausedMs: 6 * MIN, extraMs: 30 * MIN },
   "paused-recent": { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 4 * MIN },
   "paused-nudge": { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 8 * MIN },
   "paused-long": { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 25 * MIN },

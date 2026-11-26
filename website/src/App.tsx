@@ -1,6 +1,7 @@
 import { MotionConfig } from "motion/react";
 import { useRelease } from "./lib/release";
 import { ComingSoon } from "./sections/ComingSoon";
+import { Away } from "./sections/Away";
 import { Download } from "./sections/Download";
 import { Footer } from "./sections/Footer";
 import { Header } from "./sections/Header";
@@ -21,6 +22,7 @@ function App() {
         <Hero release={release} />
         <Idea />
         <Nag />
+        <Away />
         <Styles />
         <Week />
         <Settings />

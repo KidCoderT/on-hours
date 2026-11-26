@@ -35,10 +35,11 @@ export function useAlarm(on: boolean) {
   }, [on]);
 }
 
-async function shake() {
+/** Jolt the window side to side through `offsets` (physical px), back to where it was. */
+export async function shake(offsets = SHAKE) {
   const win = getCurrentWindow();
   const { x, y } = await win.outerPosition();
-  for (const dx of SHAKE) {
+  for (const dx of offsets) {
     await win.setPosition(new PhysicalPosition(x + dx, y));
     await new Promise((r) => setTimeout(r, FRAME_MS));
   }

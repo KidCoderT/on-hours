@@ -15,6 +15,7 @@ const STATES = {
   alarm: { label: "Alarm", state: { elapsedMs: 48 * MIN + 10_000, running: false, pausedMs: 45 * MIN } },
   break: { label: "Break", state: { elapsedMs: 2 * HOUR + 5 * MIN + 44_000, running: false, pausedMs: 0, breakLeftMs: 9 * MIN + 59_000 } },
   met: { label: "Goal met", state: { elapsedMs: 4 * HOUR + 37 * MIN + 12_000, running: true, pausedMs: 0 } },
+  stretch: { label: "Stretch", state: { elapsedMs: 4 * HOUR + 12 * MIN + 40_000, running: true, pausedMs: 0, extraMs: 30 * MIN } },
 } satisfies Record<string, { label: string; state: DemoState }>;
 type StateId = keyof typeof STATES;
 

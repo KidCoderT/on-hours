@@ -23,9 +23,10 @@ export type { PauseLevel } from "../lib/time";
 export type PillModel = {
   elapsedMs: number; // today's total
   goalMs: number;
-  progress: number; // elapsed / goal, clamped to 0..1
+  targetMs: number; // the goal plus today's stretch (said yes to when the goal was met); goalMs if none
+  progress: number; // elapsed / target, clamped to 0..1
   running: boolean;
-  done: boolean; // goal met today
+  done: boolean; // goal met today (the plain goal: a stretch never un-meets it)
   pausedMs: number; // hold time, 0 while running
   breakLeftMs: number; // time left on a planned break (pause "break"), else 0
   pause: PauseLevel;

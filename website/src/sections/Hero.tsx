@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { drawBurst } from "@app/lib/confetti";
+import { useCelebrate } from "@app/pill/useCelebrate";
 import { DemoPill } from "../demo/DemoPill";
 import { HOUR, useDemoTimer } from "../demo/useDemoTimer";
 import { REPO, type Release } from "../lib/release";
@@ -44,6 +46,18 @@ export function Hero({ release }: { release: Release }) {
     };
   }, [still, set]);
 
+  // The goal moment, as in the app: a green flash and a wiggle, and the app's own confetti.
+  const celebrate = useCelebrate(model.elapsedMs, model.targetMs, model.running, true);
+  const confetti = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = confetti.current;
+    const pill = c?.parentElement?.querySelector(".demo-pill");
+    if (!celebrate || !c || !pill) return;
+    const a = c.getBoundingClientRect();
+    const b = pill.getBoundingClientRect();
+    drawBurst(c,{ x: b.left - a.left, y: b.top - a.top, w: b.width, h: b.height, up: true });
+  }, [celebrate]);
+
   const take = () => {
     taken.current = true;
     setPointer("gone");
@@ -77,7 +91,8 @@ export function Hero({ release }: { release: Release }) {
 
       <motion.div className="hero-stage" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.9, ease }}>
         <div className="hero-pill-spot" onPointerDown={take} onKeyDown={take}>
-          <DemoPill theme="baseline" model={model} className="hero-pill" />
+          <canvas ref={confetti} className="hero-confetti" aria-hidden="true" />
+          <DemoPill theme="baseline" model={model} className="hero-pill" celebrate={celebrate} />
           {pointer !== "gone" && (
             <motion.span
               className="hero-pointer"

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { ANSWER, HIDE, SHOW, type BubbleAnswer, type BubbleHide, type BubbleShow } from "../../lib/bubble";
+import { ANSWER, COUNT_LABELS, HIDE, SHOW, stretchLabels, type BubbleAnswer, type BubbleHide, type BubbleShow } from "../../lib/bubble";
 import "./bubble.css";
 
 type Phase = "in" | "drop" | "quiet";
@@ -32,8 +32,7 @@ function BubbleWindow() {
 
   if (!bubble) return null;
   const primary = bubble.primary ?? "yes";
-  // Back from a pause: say what each answer does, so it can't be misread.
-  const [yesLabel, noLabel] = bubble.kind === "count" ? ["Count it", "▶ Start now"] : ["Yes", "No"];
+  const [yesLabel, noLabel] = bubble.labels ?? ["Yes", "No"];
 
   const answer = (yes: boolean) => {
     if (phase !== "in") return;
@@ -69,8 +68,9 @@ const preview: BubbleShow | null = (() => {
   if (isTauri()) return null;
   const q = new URLSearchParams(location.search);
   const kind = (q.get("kind") ?? "check") as BubbleShow["kind"];
-  const text = { check: ["Hey, you still there?", "No keyboard or mouse since 14:02."], paused: ["Paused.", "Away since 14:02."], count: ["Welcome back.", "Away 34 min, since 14:02."] }[kind];
-  return { kind, title: text[0], sub: text[1], primary: kind === "count" ? "no" : "yes", theme: q.get("theme") ?? "baseline", below: q.get("below") === "1" };
+  const text = { check: ["Hey, you still there?", "No keyboard or mouse since 14:02."], paused: ["Paused.", "Away since 14:02."], count: ["Welcome back.", "Away 34 min, since 14:02."], stretch: ["Goal met.", "Push another 30 min today?"] }[kind];
+  const labels = kind === "count" ? COUNT_LABELS : kind === "stretch" ? stretchLabels(30 * 60_000) : undefined;
+  return { kind, title: text[0], sub: text[1], primary: kind === "count" ? "no" : "yes", labels, theme: q.get("theme") ?? "baseline", below: q.get("below") === "1" };
 })();
 
 export default BubbleWindow;

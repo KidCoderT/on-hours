@@ -149,6 +149,26 @@ export async function markAwake(now = Date.now(), conn: Conn = db) {
 export const awakeBetween = (from: number, to: number) =>
   db.select<Awake[]>("SELECT * FROM awake WHERE end_ms > $1 AND start_ms < $2 ORDER BY start_ms", [from, to]);
 
+/* ---------- stretch ---------- */
+
+/** Extra time added to the day starting at `day` (its work-day start), 0 if none. */
+export const extraFor = async (day: number, conn: Pick<Database, "select"> = db) =>
+  (await conn.select<{ extra_ms: number }[]>("SELECT extra_ms FROM day_extra WHERE day_ms = $1", [day]))[0]?.extra_ms ?? 0;
+
+/** "Push another 30 minutes": add `ms` to that day's goal. Adds up when said yes again. */
+export const addExtra = (day: number, ms: number, conn: Conn = db) =>
+  conn.execute(
+    "INSERT INTO day_extra (day_ms, extra_ms) VALUES ($1, $2) ON CONFLICT(day_ms) DO UPDATE SET extra_ms = day_extra.extra_ms + excluded.extra_ms",
+    [day, ms],
+  );
+
+/** The goal was changed in settings: that day's stretch is dropped. */
+export const clearExtra = (day: number, conn: Conn = db) => conn.execute("DELETE FROM day_extra WHERE day_ms = $1", [day]);
+
+/** Each day's extra in [from, to), keyed by its work-day start. */
+export const extrasBetween = async (from: number, to: number) =>
+  new Map((await db.select<{ day_ms: number; extra_ms: number }[]>("SELECT * FROM day_extra WHERE day_ms >= $1 AND day_ms < $2", [from, to])).map((r) => [r.day_ms, r.extra_ms]));
+
 /* ---------- settings ---------- */
 
 export async function getSettings(): Promise<Settings> {

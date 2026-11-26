@@ -2,7 +2,7 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { addExtra, endBreak, extraFor, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
+import { addExtra, clearExtra, endBreak, extraFor, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
 import { awayAction, dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
@@ -280,6 +280,9 @@ test("a stretch adds to one day's goal only, and adds up when said yes again", a
   await addExtra(mon, 30 * 60_000, c); // met the stretch, said yes again
   expect(await extraFor(mon, c)).toBe(60 * 60_000);
   expect(await extraFor(tue, c)).toBe(0); // the next day starts from the plain goal
+  await addExtra(tue, 30 * 60_000, c);
+  await clearExtra(mon, c); // the goal changed: only that day's stretch goes
+  expect([await extraFor(mon, c), await extraFor(tue, c)]).toEqual([0, 30 * 60_000]);
 });
 
 test("\"Stretch by\": 30 min by default, 0 turns the question off, out of range falls back", () => {

@@ -162,6 +162,9 @@ export const addExtra = (day: number, ms: number, conn: Conn = db) =>
     [day, ms],
   );
 
+/** The goal was changed in settings: that day's stretch is dropped. */
+export const clearExtra = (day: number, conn: Conn = db) => conn.execute("DELETE FROM day_extra WHERE day_ms = $1", [day]);
+
 /** Each day's extra in [from, to), keyed by its work-day start. */
 export const extrasBetween = async (from: number, to: number) =>
   new Map((await db.select<{ day_ms: number; extra_ms: number }[]>("SELECT * FROM day_extra WHERE day_ms >= $1 AND day_ms < $2", [from, to])).map((r) => [r.day_ms, r.extra_ms]));

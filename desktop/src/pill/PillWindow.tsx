@@ -98,7 +98,7 @@ function PillWindow() {
   useFitWindow(width, loaded, alarm ? ALARM_ZOOM : 1);
   useAlarm(alarm);
   // Goal (or today's stretch) met while working: confetti, a wiggle and a green flash.
-  const celebrate = useCelebrate(elapsed >= target, running, known);
+  const celebrate = useCelebrate(elapsed, target, running, known);
 
   // The tray's "Start / Pause". A ref, so the listener always calls the current toggle.
   const latest = useRef(m);

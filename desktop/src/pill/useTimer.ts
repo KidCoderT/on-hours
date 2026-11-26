@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { ANSWER, COUNT_LABELS, hideBubble, placeBubble, showBubble, stretchLabels, type BubbleAnswer } from "../lib/bubble";
-import { addExtra, endBreak, extraFor, heartbeat, lastBreak, lastClosedSession, lastSessionEnd, pauseSession, recoverOpenSession, reopenSession, sessionsBetween, STALE_MS, startBreak, startSession } from "../lib/db";
+import { addExtra, clearExtra, endBreak, extraFor, heartbeat, lastBreak, lastClosedSession, lastSessionEnd, pauseSession, recoverOpenSession, reopenSession, sessionsBetween, STALE_MS, startBreak, startSession } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import { fmtTime } from "../lib/format";
 import type { Settings } from "../lib/settings";
@@ -345,17 +345,31 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   // Today's target met while working (the confetti moment, pill/useCelebrate.ts): once the confetti
   // has played, offer a stretch. Never when the app opens on a day already met. Saying yes moves the
   // target, so meeting that asks again: each extra is its own choice.
-  const wasReached = useRef<boolean | null>(null);
+  // Only time crossing the same target counts: a target moved by settings or a stretch isn't a moment.
+  const wasReached = useRef<{ reached: boolean; target: number } | null>(null);
   useEffect(() => {
     if (!known) return;
     const before = wasReached.current;
-    wasReached.current = reached;
-    if (before !== false || !reached || !running || !settings.stretchMs || !isTauri()) return;
+    wasReached.current = { reached, target };
+    if (before?.reached !== false || before.target !== target || !reached || !running || !settings.stretchMs || !isTauri()) return;
     const id = setTimeout(() => {
       if (runningRef.current && !bubbleRef.current) latest.current.say({ kind: "stretch", shownAt: Date.now() });
     }, STRETCH_ASK_DELAY_MS);
     return () => clearTimeout(id);
-  }, [known, reached, running, settings.stretchMs]);
+  }, [known, reached, target, running, settings.stretchMs]);
+
+  // The goal changed in settings: today starts over against the new goal. Today's stretch is
+  // dropped, and meeting the new goal while working celebrates and asks again.
+  const goalSeen = useRef<number | null>(null);
+  useEffect(() => {
+    if (!known) return;
+    const before = goalSeen.current;
+    goalSeen.current = settings.dailyGoalMs;
+    if (before === null || before === settings.dailyGoalMs) return;
+    if (bubbleRef.current?.kind === "stretch") say(null, "quiet");
+    setExtraMs(0);
+    clearExtra(today.from).catch((e) => console.error("could not drop today's stretch", e));
+  }, [known, settings.dailyGoalMs]);
 
   // Look while running, and while a bubble waits for them to come back.
   // ponytail: a restart while the bubble is up drops it and paused time stays out; persist it if that bites.

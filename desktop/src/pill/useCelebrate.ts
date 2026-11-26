@@ -10,8 +10,9 @@ const WIGGLE = [5, -5, 3, -3, 1, -1, 0];
 const FLASH_MS = 1200;
 
 /**
- * The moment today's goal is met while working: confetti bursts from the pill, the pill wiggles
- * and flashes green. Only on that moment, never when the app opens on a day already done.
+ * The moment today's target (the goal, then each stretch) is met while working: confetti bursts
+ * from the pill, the pill wiggles and flashes green. Only on that moment, never when the app opens
+ * on a day already met. `ready`: today's total is loaded, so a jump in it is real time.
  */
 export function useCelebrate(done: boolean, running: boolean, ready: boolean) {
   const was = useRef<boolean | null>(null);

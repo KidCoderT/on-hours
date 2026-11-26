@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
-import { ANSWER, hideBubble, placeBubble, showBubble, type BubbleAnswer } from "../lib/bubble";
-import { endBreak, heartbeat, lastBreak, lastClosedSession, lastSessionEnd, pauseSession, recoverOpenSession, reopenSession, sessionsBetween, STALE_MS, startBreak, startSession } from "../lib/db";
+import { ANSWER, COUNT_LABELS, hideBubble, placeBubble, showBubble, stretchLabels, type BubbleAnswer } from "../lib/bubble";
+import { addExtra, endBreak, extraFor, heartbeat, lastBreak, lastClosedSession, lastSessionEnd, pauseSession, recoverOpenSession, reopenSession, sessionsBetween, STALE_MS, startBreak, startSession } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import { fmtTime } from "../lib/format";
 import type { Settings } from "../lib/settings";
@@ -13,15 +13,21 @@ const HEARTBEAT_MS = 30_000;
 const AWAY_POLL_MS = 2_000;
 /** Idle under this after an away-pause: they're back, so ask. */
 const BACK_MS = 3_000;
-/** "Welcome back" waits this long for an answer, then goes: the timer stays paused, the away time out. */
+/** "Welcome back" and "push some more?" wait this long for an answer, then go: a No. */
 const COUNT_WAIT_MS = 60_000;
+/** Goal met: the confetti plays this long before the bubble asks about a stretch. */
+const STRETCH_ASK_DELAY_MS = 1_200;
 
 type AwayCheck = { idle_ms: number; locked: boolean };
 const checkAway = () => invoke<AwayCheck>("away").catch(() => null);
 /** The session an away-pause closed, until the person answers whether that time was work. */
 type AwaySession = { id: number; start: number; end: number };
 /** What the away bubble is showing. `from`: the last input before the check-in. */
-type Bubble = { kind: "check"; from: number } | { kind: "paused"; away: AwaySession } | { kind: "count"; away: AwaySession; shownAt: number };
+type Bubble =
+  | { kind: "check"; from: number }
+  | { kind: "paused"; away: AwaySession }
+  | { kind: "count"; away: AwaySession; shownAt: number }
+  | { kind: "stretch"; shownAt: number };
 
 /** Today's finished sessions, trimmed to the work-day. The running one is added live. */
 const finishedTotal = async (from: number, to: number) =>
@@ -31,6 +37,8 @@ const finishedTotal = async (from: number, to: number) =>
 export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const [recovered, setRecovered] = useState(false);
   const [baseMs, setBaseMs] = useState(0); // today's finished sessions
+  const [extraMs, setExtraMs] = useState(0); // today's stretch: added to the goal, just for today
+  const [loadedDay, setLoadedDay] = useState<number | null>(null); // the day baseMs and extraMs are for
   const [openStart, setOpenStart] = useState<number | null>(null); // running session's start
   const [pausedSince, setPausedSince] = useState<number | null>(null); // end of the last session
   const [now, setNow] = useState(Date.now());
@@ -52,7 +60,13 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   // A session that began before today's start only counts from the day boundary.
   const runningMs = running ? Math.max(0, now - Math.max(openStart, today.from)) : 0;
   const elapsed = baseMs + runningMs;
-  const done = elapsed >= settings.dailyGoalMs;
+  const done = elapsed >= settings.dailyGoalMs; // the day is kept: green, and pauses stop nagging
+  // What the pill counts toward: the goal plus any stretch said yes to today. Missing it never
+  // un-keeps the day: `done` stays on the plain goal.
+  const target = settings.dailyGoalMs + extraMs;
+  const reached = elapsed >= target;
+  // Today's totals are loaded: a jump in `elapsed` from here on is real time, not the load.
+  const known = ready && loadedDay === today.from;
   const pausedMs = running ? 0 : holdMs(now, pausedSince, today.from, launchedAt);
   const onBreak = !running && brk !== null && brk.start <= now && now < brk.end;
   // Rounded up to the second, so a 10 min break starts at 0:10:00 and ends at 0:00:01, never 0:00:00.
@@ -77,8 +91,12 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   // (Re)load today's finished total on launch and whenever the work-day changes.
   useEffect(() => {
     if (!ready) return;
-    finishedTotal(today.from, today.to)
-      .then(setBaseMs)
+    Promise.all([finishedTotal(today.from, today.to), extraFor(today.from)])
+      .then(([base, extra]) => {
+        setBaseMs(base);
+        setExtraMs(extra);
+        setLoadedDay(today.from);
+      })
       .catch((e) => console.error("could not load today's total", e));
   }, [ready, today.from, today.to, synced]);
 
@@ -190,6 +208,14 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
       setBrk({ start: t, end: t + ms });
     });
 
+  /** Push today's target by "Stretch by": the bubble's "+30 min", or the right-click menu. Today only. */
+  const stretch = () =>
+    write(async () => {
+      if (bubbleRef.current?.kind === "stretch") say(null);
+      await addExtra(today.from, settings.stretchMs);
+      setExtraMs((x) => x + settings.stretchMs);
+    });
+
   /** Back from a break early without starting work: the nagging picks up at nudge. */
   const endBreakNow = () => write(async (t) => (onBreak ? stopBreak(t) : undefined));
 
@@ -231,13 +257,19 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     if (b.kind === "paused") showBubble({ kind: "paused", title: "Paused.", sub: `Away since ${fmtTime(b.away.end)}.`, theme }).catch(fail);
     if (b.kind === "count") {
       const mins = Math.max(1, Math.round((Date.now() - b.away.end) / 60_000));
-      showBubble({ kind: "count", title: "Welcome back.", sub: `Away ${mins} min, since ${fmtTime(b.away.end)}.`, primary: "no", theme }).catch(fail);
+      showBubble({ kind: "count", title: "Welcome back.", sub: `Away ${mins} min, since ${fmtTime(b.away.end)}.`, primary: "no", labels: COUNT_LABELS, theme }).catch(fail);
+    }
+    if (b.kind === "stretch") {
+      const mins = Math.round(settings.stretchMs / 60_000);
+      const title = extraMs ? "Stretch done." : "Goal met.";
+      showBubble({ kind: "stretch", title, sub: `Push another ${mins} min today?`, labels: stretchLabels(settings.stretchMs), theme }).catch(fail);
     }
   };
 
   /** One look at the PC: every 2s while running or while the bubble is up. */
   const look = async (c: AwayCheck) => {
     const b = bubbleRef.current;
+    if (b?.kind === "stretch" && Date.now() - b.shownAt > COUNT_WAIT_MS) say(null, "quiet"); // no answer: not today
     if (runningRef.current) {
       const action = awayAction({ idleMs: c.idle_ms, locked: c.locked }, settings);
       const end = Date.now() - c.idle_ms;
@@ -264,6 +296,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
         if (runningRef.current) await closeAt(b.from); // "No": it wasn't work since the last input
       });
     }
+    if (b.kind === "stretch" && a.yes) void stretch();
     if (b.kind === "count") {
       void write(async (t) => {
         if (runningRef.current) return; // they already pressed play
@@ -306,8 +339,23 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     };
   }, [bubbleKind]);
 
-  const latest = useRef({ look, onAnswer });
-  latest.current = { look, onAnswer };
+  const latest = useRef({ look, onAnswer, say });
+  latest.current = { look, onAnswer, say };
+
+  // Today's target met while working (the confetti moment, pill/useCelebrate.ts): once the confetti
+  // has played, offer a stretch. Never when the app opens on a day already met. Saying yes moves the
+  // target, so meeting that asks again: each extra is its own choice.
+  const wasReached = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!known) return;
+    const before = wasReached.current;
+    wasReached.current = reached;
+    if (before !== false || !reached || !running || !settings.stretchMs || !isTauri()) return;
+    const id = setTimeout(() => {
+      if (runningRef.current && !bubbleRef.current) latest.current.say({ kind: "stretch", shownAt: Date.now() });
+    }, STRETCH_ASK_DELAY_MS);
+    return () => clearTimeout(id);
+  }, [known, reached, running, settings.stretchMs]);
 
   // Look while running, and while a bubble waits for them to come back.
   // ponytail: a restart while the bubble is up drops it and paused time stays out; persist it if that bites.
@@ -337,9 +385,10 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     const idle = async () => { };
     return {
       elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs,
-      onBreak: left > 0, breakLeftMs: left, sinceBreakMs: null, ready: true, saveFailed: false, toggle: idle, takeBreak: idle, endBreakNow: idle,
+      target: settings.dailyGoalMs + ("extraMs" in fixture ? fixture.extraMs : 0), known: true,
+      onBreak: left > 0, breakLeftMs: left, sinceBreakMs: null, ready: true, saveFailed: false, toggle: idle, takeBreak: idle, endBreakNow: idle, stretch: idle,
     };
   }
 
-  return { elapsed, running, done, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow };
+  return { elapsed, running, done, target, known, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch };
 }

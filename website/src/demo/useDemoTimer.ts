@@ -50,6 +50,7 @@ export function useDemoTimer(initial: DemoState, { goalMs = 4 * HOUR, longPauseM
   const model: PillModel = {
     elapsedMs,
     goalMs,
+    targetMs: goalMs,
     progress: Math.min(1, elapsedMs / goalMs),
     running,
     done,

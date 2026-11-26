@@ -4,13 +4,19 @@
 import { emitTo } from "@tauri-apps/api/event";
 import { currentMonitor, getCurrentWindow, PhysicalPosition, Window } from "@tauri-apps/api/window";
 
-/** check: "still there?" (timer running). paused: away long enough to pause. count: back, count it? */
-export type BubbleKind = "check" | "paused" | "count";
-/** `primary`: the highlighted answer, the one we'd nudge you toward. Yes unless said otherwise. */
-export type BubbleShow = { kind: BubbleKind; title: string; sub?: string; primary?: "yes" | "no"; theme: string; below: boolean };
+/** check: "still there?" (timer running). paused: away long enough to pause. count: back, count it?
+ * stretch: goal met, push some more today? */
+export type BubbleKind = "check" | "paused" | "count" | "stretch";
+/** `primary`: the highlighted answer, the one we'd nudge you toward. Yes unless said otherwise.
+ * `labels`: the yes and no buttons, when plain Yes / No would be unclear. */
+export type BubbleShow = { kind: BubbleKind; title: string; sub?: string; primary?: "yes" | "no"; labels?: [string, string]; theme: string; below: boolean };
 export type BubbleAnswer = { kind: BubbleKind; yes: boolean };
 /** drop: answered, falls back toward the pill. quiet: they came back without answering, fades after a beat. */
 export type BubbleHide = { how: "drop" | "quiet" };
+
+/** Back from a pause: say what each answer does, so it can't be misread. */
+export const COUNT_LABELS: [string, string] = ["Count it", "▶ Start now"];
+export const stretchLabels = (ms: number): [string, string] => [`+${Math.round(ms / 60_000)} min`, "Not today"];
 
 export const SHOW = "bubble-show";
 export const HIDE = "bubble-hide";

@@ -36,6 +36,7 @@ const SAVE_FAILED = "Couldn't save your time. Try again.";
 /** What a screen reader hears; themes keep their own visuals aria-hidden. */
 function spokenStatus(m: PillModel) {
   const today = `Today ${fmtClock(m.elapsedMs)}.`;
+  if (m.done && m.elapsedMs < m.targetMs) return `${today} Daily goal met. ${fmtHM(m.targetMs - m.elapsedMs)} left on today's stretch.`;
   if (m.done) return `${today} Daily goal met.`;
   if (m.running) return `${today} Working, daily goal not met.`;
   if (m.pause === "break") return `${today} On a break, ${fmtHM(m.breakLeftMs)} left.`;
@@ -48,7 +49,7 @@ function spokenStatus(m: PillModel) {
  */
 function PillWindow() {
   const { settings, loaded } = useSettings();
-  const { elapsed, running, done, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow } = useTimer(settings, loaded);
+  const { elapsed, running, done, target, known, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
   const theme = themeById(settings.pillTheme);
   const width = pillWidth(theme, settings.pillSettingsButton);
   // In the app, wait for the saved settings so the pill never flashes the default theme first.
@@ -78,7 +79,8 @@ function PillWindow() {
   const m: PillModel = {
     elapsedMs: elapsed,
     goalMs: settings.dailyGoalMs,
-    progress: Math.min(1, elapsed / settings.dailyGoalMs),
+    targetMs: target,
+    progress: Math.min(1, elapsed / target),
     running,
     done,
     pausedMs,
@@ -95,8 +97,8 @@ function PillWindow() {
   const alarm = m.pause === "alarm" && isTauri();
   useFitWindow(width, loaded, alarm ? ALARM_ZOOM : 1);
   useAlarm(alarm);
-  // Goal met while working: confetti, a wiggle and a green flash.
-  const celebrate = useCelebrate(done, running, ready);
+  // Goal (or today's stretch) met while working: confetti, a wiggle and a green flash.
+  const celebrate = useCelebrate(elapsed >= target, running, known);
 
   // The tray's "Start / Pause". A ref, so the listener always calls the current toggle.
   const latest = useRef(m);
@@ -128,7 +130,9 @@ function PillWindow() {
     const breaks = onBreak
       ? [{ text: "End break", action: () => void endBreakNow() }]
       : BREAKS.map((min) => ({ text: `Take a ${min} min break`, enabled: ready, action: () => void takeBreak(min * 60_000) }));
-    Menu.new({ items: [...breaks, { item: "Separator" as const }, { text: "Settings", action: m.openSettings }] })
+    // Goal met: push some more today, whenever (the bubble only asks the moment it's met).
+    const more = done && settings.stretchMs ? [{ text: `Push ${Math.round(settings.stretchMs / 60_000)} more min today`, enabled: ready, action: () => void stretch() }] : [];
+    Menu.new({ items: [...more, ...breaks, { item: "Separator" as const }, { text: "Settings", action: m.openSettings }] })
       .then((menu) => menu.popup())
       .catch((err) => console.error("could not open the pill menu", err));
   };

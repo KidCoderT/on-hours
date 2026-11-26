@@ -6,8 +6,8 @@ export const HOUR = 3_600_000;
 const MIN = 60_000;
 
 /** breakLeftMs > 0: on a planned break. afterBreak: the break ran out, so the pause nags from the nudge on.
- * extraMs: today's stretch past the goal (said yes to when the goal was met). */
-export type DemoState = { elapsedMs: number; running: boolean; pausedMs: number; breakLeftMs?: number; afterBreak?: boolean; extraMs?: number };
+ * extraMs: today's stretch past the goal (said yes to when the goal was met). quiet: snoozed or done for today, nothing nags. */
+export type DemoState = { elapsedMs: number; running: boolean; pausedMs: number; breakLeftMs?: number; afterBreak?: boolean; extraMs?: number; quiet?: boolean };
 
 type Options = {
   goalMs?: number;
@@ -45,7 +45,7 @@ export function useDemoTimer(initial: DemoState, { goalMs = 4 * HOUR, longPauseM
 
   const toggle = () => setState((s) => ({ ...s, running: !s.running, pausedMs: 0, breakLeftMs: 0, afterBreak: false }));
   const takeBreak = (ms: number) => setState((s) => ({ ...s, running: false, pausedMs: 0, breakLeftMs: ms, afterBreak: false }));
-  const { elapsedMs, running, pausedMs, breakLeftMs = 0, afterBreak = false, extraMs = 0 } = state;
+  const { elapsedMs, running, pausedMs, breakLeftMs = 0, afterBreak = false, extraMs = 0, quiet = false } = state;
   const done = elapsedMs >= goalMs;
   const targetMs = goalMs + extraMs;
   const onBreak = !running && breakLeftMs > 0;
@@ -59,7 +59,7 @@ export function useDemoTimer(initial: DemoState, { goalMs = 4 * HOUR, longPauseM
     pausedMs,
     breakLeftMs: onBreak ? Math.ceil(breakLeftMs / 1000) * 1000 : 0,
     pause: pauseLevel(
-      { running, done, pausedMs, onBreak, sinceBreakMs: afterBreak ? pausedMs : null },
+      { running, done: done || quiet, pausedMs, onBreak, sinceBreakMs: afterBreak ? pausedMs : null },
       { nudgeMs: 5 * MIN, longPauseMs, alarmFactor: 1.5 },
     ),
     ready: true,

@@ -65,7 +65,7 @@ export function Away() {
           {STEPS.map((s) => <Step key={s.title} {...s} />)}
         </ol>
       </Reveal>
-      <p className="nag-note">Both times are yours to set, or turn off. Locking the PC always pauses.</p>
+      <p className="nag-note">Both times are yours to set, or turn off. Locking the PC always pauses, and asks when you unlock.</p>
     </section>
   );
 }

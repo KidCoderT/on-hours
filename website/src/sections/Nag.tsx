@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useInView } from "motion/react";
 import { DemoPill } from "../demo/DemoPill";
 import { HOUR, useDemoTimer, type DemoState } from "../demo/useDemoTimer";
@@ -9,8 +9,8 @@ const BREAKS = [10, 15, 30];
 
 // The app's pause stages, each held at a moment inside it (default settings: long pause 20 min, alarm at 1.5x).
 const STAGES: { when: string; title: string; body: string; state: DemoState }[] = [
-  { when: "0 – 5 min", title: "Short pause", body: "A red light, nothing more. Grab a coffee.", state: { elapsedMs: 2 * HOUR + 5 * MIN, running: false, pausedMs: 2 * MIN } },
-  { when: "5 min", title: "Nudge", body: "The light hops every 20 seconds, like a Dock icon asking for you.", state: { elapsedMs: 2 * HOUR + 5 * MIN, running: false, pausedMs: 8 * MIN } },
+  { when: "0 – 5 min", title: "Short pause", body: "The light and the number go grey. Nothing asked yet: grab a coffee.", state: { elapsedMs: 2 * HOUR + 5 * MIN, running: false, pausedMs: 2 * MIN } },
+  { when: "5 min", title: "Nudge", body: "The light turns red and hops every 20 seconds, like a Dock icon asking for you.", state: { elapsedMs: 2 * HOUR + 5 * MIN, running: false, pausedMs: 8 * MIN } },
   { when: "20 min", title: "Long pause", body: "It hops every 5 seconds, glowing, and the number turns red.", state: { elapsedMs: 2 * HOUR + 5 * MIN, running: false, pausedMs: 24 * MIN } },
   { when: "30 min", title: "Alarm", body: "The pill grows, shakes, and flashes its taskbar button until you come back.", state: { elapsedMs: 2 * HOUR + 5 * MIN, running: false, pausedMs: 45 * MIN } },
 ];
@@ -35,6 +35,11 @@ function BreakDemo() {
   const inView = useInView(ref);
   const { model, takeBreak, set } = useDemoTimer({ elapsedMs: 2 * HOUR + 5 * MIN, running: false, pausedMs: 8 * MIN }, { active: inView });
   const onBreak = model.pause === "break";
+  const [quiet, setQuiet] = useState<"" | "snooze" | "done">("");
+  const hush = (q: typeof quiet) => {
+    setQuiet(q);
+    set((s) => ({ ...s, quiet: !!q, running: q === "done" ? false : s.running }));
+  };
   return (
     <div ref={ref} className="break-demo">
       <div className="pill-menu" role="group" aria-label="The pill's right-click menu">
@@ -44,6 +49,15 @@ function BreakDemo() {
           BREAKS.map((min) => (
             <button type="button" key={min} onClick={() => takeBreak(min * MIN)}>Take a {min} min break</button>
           ))
+        )}
+        <hr />
+        {quiet ? (
+          <button type="button" onClick={() => hush("")}>{quiet === "done" ? "Done for today" : "Snoozed 30 min"}: remind me again</button>
+        ) : (
+          <>
+            <button type="button" onClick={() => hush("snooze")}>Snooze reminders 30 min</button>
+            <button type="button" onClick={() => hush("done")}>Done for today</button>
+          </>
         )}
         <hr />
         <span>Settings</span>
@@ -70,7 +84,8 @@ export function Nag() {
         </ol>
       </Reveal>
       <p className="nag-note">
-        Once today's goal is met, it stops asking. The alarm time is yours to set: 1.5 long pauses by default.
+        Once today's goal is met, it stops asking. It never sounds the alarm at an empty desk: locked or away, it
+        waits, and coming back starts the stages over. The alarm time is yours to set: 1.5 long pauses by default.
       </p>
 
       <div className="break-layout">
@@ -80,7 +95,11 @@ export function Nag() {
             Right-click the pill and take 10, 15 or 30 minutes. The clock turns blue and counts the break down, and
             nothing nags. Stay away past the end and it nudges you straight away. Breaks show up in your history.
           </p>
-          <p className="break-try">Try it: pick a break.</p>
+          <p>
+            Off for longer? Snooze the reminders for 30 minutes, or call it done for today: it pauses and goes quiet
+            until tomorrow. Days off can be rest days in Settings, and a missed one isn't held against your week.
+          </p>
+          <p className="break-try">Try it: pick a break, or snooze it.</p>
         </Reveal>
         <Reveal delay={0.1}>
           <BreakDemo />

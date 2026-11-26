@@ -73,6 +73,9 @@
   text-decoration-skip-ink: none;
 }
 
+/* On a stretch: the figure is back in ink, still being written, but the rule under it stays green. */
+.pill[data-theme="ledger"][data-stretch="true"] .figure { color: var(--ink); }
+
 /* Margin note: how long the gap is. Pencil while brief, red once long; gone once the goal is kept. */
 .pill[data-theme="ledger"] .note {
   flex: none;

@@ -6,7 +6,7 @@ import { addExtra, clearExtra, endBreak, extraFor, heartbeat, lastBreak, lastClo
 import { fixture } from "../lib/fixture";
 import { fmtTime } from "../lib/format";
 import type { Settings } from "../lib/settings";
-import { awayAction, dayRange, holdMs, nagMs, trimmedTotal, workDayOf } from "../lib/time";
+import { awayAction, dayRange, holdMs, nagMs, stretchAdd, trimmedTotal, workDayOf } from "../lib/time";
 
 const HEARTBEAT_MS = 30_000;
 /** How often a running timer (or a waiting bubble) checks whether anyone is at the PC (away.rs). */
@@ -217,12 +217,16 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
       setBrk({ start: t, end: t + ms });
     });
 
-  /** Push today's target by "Stretch by": the bubble's "+30 min", or the right-click menu. Today only. */
+  /**
+   * Push today's target to "Stretch by" past now: the bubble's "+30 min", or the right-click menu.
+   * Already past the target: from now, so "Push 30 more" always means 30 more. Today only.
+   */
   const stretch = () =>
     write(async () => {
       if (bubbleRef.current?.kind === "stretch") say(null);
-      await addExtra(today.from, settings.stretchMs);
-      setExtraMs((x) => x + settings.stretchMs);
+      const add = stretchAdd(elapsed, target, settings.stretchMs);
+      await addExtra(today.from, add);
+      setExtraMs((x) => x + add);
     });
 
   /** Back from a break early without starting work: the nagging picks up at nudge. */
@@ -237,7 +241,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
    *   bubble says "Welcome back": Count it reopens the session (the away time was work), Start now
    *   starts a new one (it wasn't). A click elsewhere, typing, or a minute's wait dismisses it: the
    *   timer stays paused and the away time stays out.
-   * Locking pauses at the last input and asks nothing. A sleep is the heartbeat's job, nothing asked.
+   * Locking pauses at the last input the same way, and asks once unlocked. A sleep is the heartbeat's job, nothing asked.
    */
   const closeAt = async (end: number): Promise<AwaySession | null> => {
     if (!(await heartbeat())) {
@@ -292,7 +296,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
         await write(async () => {
           if (!runningRef.current) return;
           const away = await closeAt(end);
-          say(away && action === "pause" ? { kind: "paused", away } : null);
+          say(away ? { kind: "paused", away } : null);
         });
       } else if (action === "check" && !b) say({ kind: "check", from: end });
       else if (!action && b?.kind === "check") say(null, "quiet"); // back without answering: it counts
@@ -318,6 +322,9 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
         if (a.yes) {
           // "Count it": the session carries on as if never paused.
           if (!(await reopenSession(b.away.id, b.away.end, t))) return;
+          // It's running again, so it leaves the finished total right away: otherwise it counts twice
+          // until the reload below lands (and could even set off the goal's confetti).
+          setBaseMs((x) => x - trimmedTotal([{ start_ms: b.away.start, end_ms: b.away.end }], today.from, today.to));
           setOpenStart(b.away.start);
           setSynced((n) => n + 1); // the reopened session leaves today's finished total
         } else {
@@ -408,11 +415,11 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     const left = "breakLeftMs" in fixture ? fixture.breakLeftMs : 0;
     const idle = async () => { };
     return {
-      elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs,
+      bubble: null, elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs,
       target: settings.dailyGoalMs + ("extraMs" in fixture ? fixture.extraMs : 0), known: true, nag: fixture.pausedMs, away: false, quiet: false, restDay: false, dayEnd: 0,
       onBreak: left > 0, breakLeftMs: left, sinceBreakMs: null, ready: true, saveFailed: false, toggle: idle, takeBreak: idle, endBreakNow: idle, stretch: idle,
     };
   }
 
-  return { elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd: today.to, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch };
+  return { bubble: bubbleKind, elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd: today.to, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch };
 }

@@ -11,6 +11,9 @@ const FRAME_MS = 35;
 
 const fail = (e: unknown) => console.error("alarm failed", e);
 
+/** Reduced motion is on: no shakes, wiggles, confetti or growing. Read when used, so a change applies next time. */
+export const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 /**
  * The alarm stage reaching outside the pill: the pill gets a taskbar button that flashes until
  * clicked, and the window shakes, both again every 30s. The pill's growing is useFitWindow's job.
@@ -22,7 +25,7 @@ export function useAlarm(on: boolean) {
     const win = getCurrentWindow();
     const burst = () => {
       win.requestUserAttention(UserAttentionType.Critical).catch(fail);
-      onWindowQueue(() => shake()).catch(fail);
+      if (!calm()) onWindowQueue(() => shake()).catch(fail);
     };
     // A hidden pill is a forgotten timer: bring it back, with a taskbar button to flash.
     win.show().then(() => win.setSkipTaskbar(false)).then(burst).catch(fail);

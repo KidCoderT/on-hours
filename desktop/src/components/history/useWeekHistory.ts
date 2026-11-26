@@ -47,7 +47,7 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
         .then((x) => alive && setExtras(x))
         .catch(fail);
       firstSessionStart()
-        .then((t) => alive && setMaxOffset(t ? Math.round((+thisWeekStart - +weekStartOf(new Date(t), weekStart)) / WEEK) : 0))
+        .then((t) => alive && setMaxOffset(t ? Math.round((+thisWeekStart - +weekStartOf(startOfDay(workDayOf(new Date(t), dayStart)), weekStart)) / WEEK) : 0))
         .catch(fail);
     };
     load();
@@ -57,7 +57,7 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
       alive = false;
       window.removeEventListener("focus", load);
     };
-  }, [from, to, +thisWeekStart]);
+  }, [from, to, +thisWeekStart, dayStart]);
 
   // ponytail: a running session counts up to "now" but only refreshes on focus / paging; add a timer if a live chart matters.
   const now = Date.now();

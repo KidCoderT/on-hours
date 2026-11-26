@@ -48,9 +48,10 @@ function RestDaysRow({ settings, save }: SettingsApi) {
 
 /**
  * A number field that may be mid-edit ("" or "1.") without saving. Shows the saved value once
- * settings load; saves only values `parse` accepts.
+ * settings load; saves only values `parse` accepts. `lazy`: save on Enter or leaving the field
+ * (`commit`), not each keystroke, and only a changed value; an unaccepted one goes back to the saved.
  */
-function useNumberField(saved: number, loaded: boolean, parse: (text: string) => number | null, save: (n: number) => void) {
+function useNumberField(saved: number, loaded: boolean, parse: (text: string) => number | null, save: (n: number) => void, lazy = false) {
   const [text, setText] = useState(String(saved));
   useEffect(() => {
     if (loaded) setText(String(saved));
@@ -58,9 +59,14 @@ function useNumberField(saved: number, loaded: boolean, parse: (text: string) =>
   const onChange = (next: string) => {
     setText(next);
     const n = parse(next);
-    if (n !== null) save(n);
+    if (n !== null && !lazy) save(n);
   };
-  return [text, onChange] as const;
+  const commit = () => {
+    const n = parse(text);
+    if (n === null) setText(String(saved));
+    else if (n !== saved) save(n);
+  };
+  return [text, onChange, commit] as const;
 }
 
 function PillPrefs({ settings, save }: SettingsApi) {
@@ -168,7 +174,8 @@ function StretchRow({ settings, loaded, save }: SettingsApi) {
 
 function DailyRhythm(api: SettingsApi) {
   const { settings, loaded, save } = api;
-  const [goalText, onGoal] = useNumberField(
+  // Lazy: a new goal drops today's stretch, so typing "4" on the way to "4.5" mustn't.
+  const [goalText, onGoal, commitGoal] = useNumberField(
     settings.dailyGoalMs / 3_600_000,
     loaded,
     // At least 1 minute once rounded, like parseSettings: a 0-minute goal would reload as the default.
@@ -177,6 +184,7 @@ function DailyRhythm(api: SettingsApi) {
       const min = Math.round(h * 60);
       save("daily_goal_min", String(min), { ...settings, dailyGoalMs: min * 60_000 });
     },
+    true,
   );
   const [pauseText, onPause] = useNumberField(
     settings.longPauseMs / 60_000,
@@ -202,7 +210,9 @@ function DailyRhythm(api: SettingsApi) {
       <label className="row">
         <span className="row-copy"><span>Daily goal</span><small>Your minimum focused time.</small></span>
         <span className="field">
-          <input aria-label="Daily goal in hours" type="number" min={0.5} max={24} step={0.5} value={goalText} onChange={(e) => onGoal(e.target.value)} />
+          <input aria-label="Daily goal in hours" type="number" min={0.5} max={24} step={0.5} value={goalText} onChange={(e) => onGoal(e.target.value)}
+            onBlur={commitGoal} onKeyDown={(e) => e.key === "Enter" && commitGoal()}
+          />
           <span aria-hidden="true">h</span>
         </span>
       </label>

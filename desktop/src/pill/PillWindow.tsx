@@ -10,7 +10,7 @@ import { quitApp } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import { pillWidth, THEMES, themeById } from "../themes/registry";
 import type { PillModel } from "../themes/types";
-import { useAlarm } from "./useAlarm";
+import { calm, useAlarm } from "./useAlarm";
 import { useAutoUpdate } from "./useAutoUpdate";
 import { useAwakeLog } from "./useAwakeLog";
 import { useCelebrate } from "./useCelebrate";
@@ -39,10 +39,10 @@ const SAVE_FAILED = "Couldn't save your time. Try again.";
 /** What a screen reader hears; themes keep their own visuals aria-hidden. */
 function spokenStatus(m: PillModel) {
   const today = `Today ${fmtClock(m.elapsedMs)}.`;
+  if (m.pause === "break") return `${today} On a break, ${fmtHM(m.breakLeftMs)} left.`;
   if (m.done && m.elapsedMs < m.targetMs) return `${today} Daily goal met. ${fmtHM(m.targetMs - m.elapsedMs)} left on today's stretch.`;
   if (m.done) return `${today} Daily goal met.`;
   if (m.running) return `${today} Working, daily goal not met.`;
-  if (m.pause === "break") return `${today} On a break, ${fmtHM(m.breakLeftMs)} left.`;
   return `${today} Paused for ${fmtHM(m.pausedMs)}, daily goal not met.`;
 }
 
@@ -52,15 +52,16 @@ function spokenStatus(m: PillModel) {
  */
 function PillWindow() {
   const { settings, loaded, save } = useSettings();
-  const { elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
+  const { bubble, elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
   const theme = themeById(settings.pillTheme);
   const width = pillWidth(theme, settings.pillSettingsButton);
   // In the app, wait for the saved settings so the pill never flashes the default theme first.
   const settled = loaded || !isTauri();
   useWindowPosition();
   useAwakeLog();
-  // Updates restart the app: wait for a long pause, not a quick break.
-  useAutoUpdate(!running && pausedMs >= settings.longPauseMs);
+  // Updates restart the app: wait for a long pause. Never during a break (they're coming back to it)
+  // or while a bubble waits for an answer (a restart would drop it, and "Count it" with it).
+  useAutoUpdate(!running && !onBreak && !bubble && pausedMs >= settings.longPauseMs);
 
   // Screenshot harness only: tell it the window width and the registered themes, so it can
   // size the viewport and fail when a theme overflows its declared width.
@@ -99,7 +100,7 @@ function PillWindow() {
   // The alarm stage: the pill grows, shakes and flashes its taskbar button. App only: in the
   // screenshot harness the window can't grow, so the pill is drawn at its normal size.
   const alarm = m.pause === "alarm" && isTauri();
-  useFitWindow(width, loaded, alarm ? ALARM_ZOOM : 1);
+  useFitWindow(width, loaded, alarm && !calm() ? ALARM_ZOOM : 1);
   useAlarm(alarm);
   // Goal (or today's stretch) met while working: confetti, a wiggle and a green flash.
   const celebrate = useCelebrate(elapsed, target, running, known);
@@ -165,6 +166,8 @@ function PillWindow() {
     >
       {/* Not a live region: it changes every second and would read the clock aloud nonstop. */}
       <span className="sr-only">{saveFailed && `${SAVE_FAILED} `}{spokenStatus(m)}</span>
+      {/* The moments, read once as they happen: the text appears, then goes. */}
+      <span className="sr-only" aria-live="polite">{celebrate ? "Daily goal met." : m.pause === "alarm" ? "Paused too long. Time to get back to work." : ""}</span>
       <theme.Pill m={m} />
     </div>
   );

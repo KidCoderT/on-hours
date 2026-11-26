@@ -54,6 +54,9 @@ export const nagMs = (now: number, pausedMs: number, backAt: number | null, dayF
   return Math.max(0, now - since);
 };
 
+/** How much a stretch adds to today's target: `stretchMs` past the target, or past now once beyond it. */
+export const stretchAdd = (elapsed: number, target: number, stretchMs: number) => Math.max(stretchMs, elapsed + stretchMs - target);
+
 /** Time worked inside [from, to): sessions crossing the edges are trimmed, never split. */
 export const trimmedTotal = (sessions: Span[], from: number, to: number) =>
   sessions.reduce((sum, s) => sum + Math.max(0, Math.min(s.end_ms, to) - Math.max(s.start_ms, from)), 0);

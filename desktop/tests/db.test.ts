@@ -4,7 +4,7 @@ import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
 import { addExtra, clearExtra, endBreak, extraFor, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
-import { awayAction, dayRange, holdMs, nagMs, pauseLevel, ROLLOVER_QUIET_MS, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
+import { awayAction, dayRange, holdMs, nagMs, pauseLevel, stretchAdd, ROLLOVER_QUIET_MS, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
 const H = 3_600_000;
 const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, end_ms: end, open: 0 });
@@ -321,4 +321,11 @@ test("rest days and quiet-until parse; junk is dropped", () => {
   expect(parseSettings({ quiet_until: "1764000000000" }).quietUntil).toBe(1764000000000);
   expect(parseSettings({ quiet_until: "-5" }).quietUntil).toBe(0);
   expect(parseSettings({ quiet_until: "soon" }).quietUntil).toBe(0);
+});
+
+test("push more: 30 past the target, or 30 past now once beyond it", () => {
+  const M = 60_000;
+  expect(stretchAdd(240 * M, 240 * M, 30 * M)).toBe(30 * M); // the moment the goal is met
+  expect(stretchAdd(250 * M, 240 * M, 30 * M)).toBe(40 * M); // 10 min past: target ends 30 min from now
+  expect(stretchAdd(200 * M, 270 * M, 30 * M)).toBe(30 * M); // mid-stretch: 30 more on top
 });

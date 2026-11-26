@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { burstConfetti } from "../lib/confetti";
-import { shake } from "./useAlarm";
+import { calm, shake } from "./useAlarm";
 import { onWindowQueue } from "./useFitWindow";
 
 /** A small, happy wiggle: gentler than the alarm's. */
@@ -25,7 +25,7 @@ export function useCelebrate(elapsed: number, target: number, running: boolean, 
     was.current = { done, target };
     if (before?.done !== false || before.target !== target || !done || !running) return;
     setOn(true);
-    if (isTauri()) {
+    if (isTauri() && !calm()) { // reduced motion: the flash's CSS is off too, so the moment is the screen reader's
       burstConfetti().catch((e) => console.error("no confetti", e));
       onWindowQueue(() => shake(WIGGLE)).catch((e) => console.error("no wiggle", e));
     }

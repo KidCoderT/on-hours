@@ -336,7 +336,7 @@ test("push more: 30 past the target, or 30 past now once beyond it", () => {
 
 test("away bubbles: the state machine the timer runs every 2s", () => {
   const M = 60_000;
-  const set = { checkInMs: 10 * M, pauseAfterMs: 20 * M };
+  const set = { checkInMs: 10 * M, pauseAfterMs: 20 * M, longPauseMs: 15 * M };
   const now = 100 * M;
   const step = (p: Partial<Parameters<typeof awayStep>[0]>) => awayStep({ running: true, bubble: null, idleMs: 0, locked: false, now, ...p }, set);
   expect(step({}).fx).toEqual([]); // working, at the PC
@@ -355,6 +355,18 @@ test("away bubbles: the state machine the timer runs every 2s", () => {
   expect(step({ bubble: { kind: "stretch", shownAt: now - 61_000 } }).fx).toEqual([{ do: "hide", how: "quiet" }]);
   // Paused and idle a while but under "Pause after": not away, the nagging is for exactly this.
   expect(step({ running: false, idleMs: 5 * M }).gone).toBe(false);
+});
+
+test("the alarm never finds an empty desk, whatever 'Pause after' is", () => {
+  const M = 60_000;
+  const s = { ...DEFAULT_SETTINGS, longPauseMs: 10 * M, alarmFactor: 1.25 };
+  const level = (idleMs: number, pauseAfterMs: number) => {
+    const { gone } = awayStep({ running: false, bubble: null, idleMs, locked: false, now: 100 * M }, { ...s, pauseAfterMs });
+    return pauseLevel({ running: false, done: false, pausedMs: idleMs, onBreak: false, sinceBreakMs: null, away: gone }, s);
+  };
+  expect(level(16 * M, 20 * M)).toBe("long"); // alarm due at 12.5 min, "Pause after" at 20: idle since the long pause
+  expect(level(3 * 60 * M, 0)).toBe("long"); // "Pause after" off: still not an alarm
+  expect(level(9 * M, 0)).toBe("nudge"); // under a long pause idle: here, reading
 });
 
 test("hand edits: add, change and delete finished sessions; the running one is never touched", async () => {

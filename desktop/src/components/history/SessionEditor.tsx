@@ -25,9 +25,13 @@ function SessionEditor({ day, dayStart, sessions, onChanged }: Props) {
   const [error, setError] = useState("");
   const at = (hhmm: string) => atWorkDay(day.date, hhmm, dayStart);
 
+  // The list can be stale (the timer may have started since), so the database checks overlaps too.
   const run = async (change: () => Promise<unknown>) => {
     try {
-      await change();
+      if ((await change()) === false) {
+        setError("That overlaps another session.");
+        return onChanged();
+      }
       setError("");
       if (isTauri()) await emit("sessions-changed");
       onChanged();

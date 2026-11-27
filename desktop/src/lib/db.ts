@@ -181,13 +181,17 @@ export const goalsBetween = async (from: number, to: number) =>
 
 /* ---------- editing history (Settings) ---------- */
 
-/** Add a finished session by hand. */
-export const addSession = (start: number, end: number, conn: Conn = db) =>
-  conn.execute("INSERT INTO sessions (start_ms, end_ms, open) VALUES ($1, $2, 0)", [start, end]);
+// No other session in [$1, $2), checked in the same statement as the write. The running one reaches
+// to now, past any end the editor accepts, so it overlaps whatever ends after it started.
+const FREE = "NOT EXISTS (SELECT 1 FROM sessions WHERE id IS NOT $3 AND start_ms < $2 AND (open = 1 OR end_ms > $1))";
 
-/** Change a finished session's times. The running one is the timer's: never touched here. */
-export const editSession = (id: number, start: number, end: number, conn: Conn = db) =>
-  conn.execute("UPDATE sessions SET start_ms = $1, end_ms = $2 WHERE id = $3 AND open = 0", [start, end, id]);
+/** Add a finished session by hand. False: it overlaps another session, nothing saved. */
+export const addSession = async (start: number, end: number, conn: Conn = db) =>
+  (await conn.execute(`INSERT INTO sessions (start_ms, end_ms, open) SELECT $1, $2, 0 WHERE ${FREE}`, [start, end, null])).rowsAffected > 0;
+
+/** Change a finished session's times. The running one is the timer's: never touched here. False: not saved. */
+export const editSession = async (id: number, start: number, end: number, conn: Conn = db) =>
+  (await conn.execute(`UPDATE sessions SET start_ms = $1, end_ms = $2 WHERE id = $3 AND open = 0 AND ${FREE}`, [start, end, id])).rowsAffected > 0;
 
 /** Delete a finished session. */
 export const deleteSession = (id: number, conn: Conn = db) => conn.execute("DELETE FROM sessions WHERE id = $1 AND open = 0", [id]);

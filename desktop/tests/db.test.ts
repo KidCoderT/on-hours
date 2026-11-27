@@ -361,17 +361,24 @@ test("hand edits: add, change and delete finished sessions; the running one is n
   const db = new Database(":memory:");
   await migrate(db, migrationFiles());
   const c = conn(db) as never;
-  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (10, 20, 1)");
-  await addSession(100, 200, c);
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (1000, 1010, 1)");
+  expect(await addSession(100, 200, c)).toBe(true);
   const id = (db.query("SELECT id FROM sessions WHERE open = 0").get() as { id: number }).id;
   await editSession(id, 120, 220, c);
   expect(db.query("SELECT start_ms, end_ms FROM sessions WHERE id = ?").get(id)).toEqual({ start_ms: 120, end_ms: 220 });
   const open = (db.query("SELECT id FROM sessions WHERE open = 1").get() as { id: number }).id;
   await editSession(open, 0, 5, c);
   await deleteSession(open, c);
-  expect(only(db)).toEqual({ start_ms: 10, end_ms: 20, open: 1 }); // first row: the running one, as it was
+  expect(only(db)).toEqual({ start_ms: 1000, end_ms: 1010, open: 1 }); // first row: the running one, as it was
+  // Overlaps are refused by the database itself, whatever the editor's list says.
+  expect(await addSession(150, 300, c)).toBe(false); // over the finished one
+  expect(await addSession(1005, 1008, c)).toBe(false); // inside the running one's last heartbeat
+  expect(await addSession(2000, 3000, c)).toBe(false); // after its heartbeat, but it runs to now
+  expect(await addSession(220, 1000, c)).toBe(true); // touching both ends is fine
+  expect(await editSession(id, 150, 400, c)).toBe(false); // moved over the one just added
+  expect(await editSession(id, 110, 210, c)).toBe(true); // overlapping only its old self
   await deleteSession(id, c);
-  expect(db.query("SELECT COUNT(*) AS n FROM sessions").get()).toEqual({ n: 1 });
+  expect(db.query("SELECT COUNT(*) AS n FROM sessions").get()).toEqual({ n: 2 });
 });
 
 test("each day keeps the goal it was judged against", async () => {

@@ -152,7 +152,7 @@ function PillWindow() {
     // Reminders: nothing to quiet once the goal is met. Quieted by hand: say until when, and undo.
     const snoozed = Date.now() < settings.quietUntil;
     const reminders = done ? [] : restDay ? [{ text: "Rest day: no reminders", enabled: false }]
-      : snoozed ? [{ text: `${settings.quietUntil >= dayEnd ? "Done for today" : `Snoozed till ${fmtTime(settings.quietUntil)}`}: remind me again`, action: () => hush(0) }]
+      : snoozed ? [{ text: settings.quietUntil >= dayEnd ? "Actually, I need to work some more" : `Snoozed till ${fmtTime(settings.quietUntil)}: remind me again`, action: () => hush(0) }]
       : [{ text: "Snooze reminders 30 min", action: snooze }, { text: "Done for today", action: doneToday }];
     const sep = { item: "Separator" as const };
     Menu.new({ items: [...more, ...breaks, ...(reminders.length ? [sep, ...reminders] : []), sep, { text: "Settings", action: m.openSettings }] })

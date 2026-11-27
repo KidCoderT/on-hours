@@ -2,7 +2,7 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { addSession, deleteSession, editSession, setDayGoal, addExtra, clearExtra, endBreak, extraFor, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
+import { addSession, deleteSession, editSession, setDayGoal, goalsBetween, extrasBetween, addExtra, clearExtra, endBreak, extraFor, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
 import { awayStep } from "../src/lib/away";
 import { sessionsCsv } from "../src/lib/format";
@@ -287,6 +287,26 @@ test("a stretch adds to one day's goal only, and adds up when said yes again", a
   expect([await extraFor(mon, c), await extraFor(tue, c)]).toEqual([0, 30 * 60_000]);
 });
 
+test("moving 'day start' keeps each past day's goal and stretch", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = { ...conn(db), select: async (sql: string, args: unknown[] = []) => db.query(sql).all(...(args as number[])) } as never;
+  const mon = new Date(2026, 10, 2);
+  const tue = new Date(2026, 10, 3);
+  await setDayGoal(dayRange(mon, "00:00").from, 2 * H, c); // written with day start 00:00
+  await addExtra(dayRange(mon, "00:00").from, 30 * 60_000, c);
+  // Day start is now 04:00: the week is read with the new day ranges.
+  const week = { from: dayRange(mon, "04:00").from, to: dayRange(tue, "04:00").to };
+  expect((await goalsBetween(week.from, week.to, c)).get(+mon)).toBe(2 * H);
+  expect((await extrasBetween(week.from, week.to, c)).get(+mon)).toBe(30 * 60_000);
+  expect(await extraFor(dayRange(mon, "04:00").from, c)).toBe(30 * 60_000); // the pill finds today's stretch too
+  // Today's goal written again under the new start replaces the old row, not beside it.
+  await setDayGoal(dayRange(mon, "04:00").from, 3 * H, c);
+  expect((await goalsBetween(week.from, week.to, c)).get(+mon)).toBe(3 * H);
+  expect(db.query("SELECT COUNT(*) AS n FROM day_goal").get()).toEqual({ n: 1 });
+  expect((await goalsBetween(week.from, week.to, c)).has(+tue)).toBe(false); // other days: none recorded
+});
+
 test("\"Stretch by\": 30 min by default, 0 turns the question off, out of range falls back", () => {
   const M = 60_000;
   expect(parseSettings({}).stretchMs).toBe(30 * M);
@@ -397,10 +417,12 @@ test("each day keeps the goal it was judged against", async () => {
   const db = new Database(":memory:");
   await migrate(db, migrationFiles());
   const c = conn(db) as never;
-  await setDayGoal(1000, 240 * 60_000, c);
-  await setDayGoal(2000, 240 * 60_000, c);
-  await setDayGoal(2000, 180 * 60_000, c); // the goal changed that day: that day follows
-  expect(db.query("SELECT day_ms, goal_ms FROM day_goal ORDER BY day_ms").all()).toEqual([{ day_ms: 1000, goal_ms: 240 * 60_000 }, { day_ms: 2000, goal_ms: 180 * 60_000 }]);
+  const mon = dayRange(new Date(2026, 10, 2), "00:00").from;
+  const tue = dayRange(new Date(2026, 10, 3), "00:00").from;
+  await setDayGoal(mon, 240 * 60_000, c);
+  await setDayGoal(tue, 240 * 60_000, c);
+  await setDayGoal(tue, 180 * 60_000, c); // the goal changed that day: that day follows
+  expect(db.query("SELECT day_ms, goal_ms FROM day_goal ORDER BY day_ms").all()).toEqual([{ day_ms: mon, goal_ms: 240 * 60_000 }, { day_ms: tue, goal_ms: 180 * 60_000 }]);
 });
 
 test("hand-edited times land on the work-day; overlaps are caught", () => {

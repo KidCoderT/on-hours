@@ -1,6 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import Database from "@tauri-apps/plugin-sql";
 import { parseSettings, type SettingKey, type Settings } from "./settings";
+import { addDays, startOfDay } from "./time";
+
+// A day's goal and stretch rows are keyed by its work-day start, as it was when written. Look them
+// up by calendar date, so moving "day start" doesn't orphan every past day's row.
+const dateOf = (ms: number) => startOfDay(new Date(ms));
+const dateSpan = (day: number) => [+dateOf(day), +addDays(dateOf(day), 1)];
 
 // The DB is opened + migrated by Rust at startup (`preload` in tauri.conf.json),
 // so every window shares that one connection. File: %APPDATA%/com.tejas.on-hours/on-hours.db
@@ -153,7 +159,7 @@ export const awakeBetween = (from: number, to: number) =>
 
 /** Extra time added to the day starting at `day` (its work-day start), 0 if none. */
 export const extraFor = async (day: number, conn: Pick<Database, "select"> = db) =>
-  (await conn.select<{ extra_ms: number }[]>("SELECT extra_ms FROM day_extra WHERE day_ms = $1", [day]))[0]?.extra_ms ?? 0;
+  (await conn.select<{ ms: number | null }[]>("SELECT SUM(extra_ms) AS ms FROM day_extra WHERE day_ms >= $1 AND day_ms < $2", dateSpan(day)))[0]?.ms ?? 0;
 
 /** "Push another 30 minutes": add `ms` to that day's goal. Adds up when said yes again. */
 export const addExtra = (day: number, ms: number, conn: Conn = db) =>
@@ -163,21 +169,28 @@ export const addExtra = (day: number, ms: number, conn: Conn = db) =>
   );
 
 /** The goal was changed in settings: that day's stretch is dropped. */
-export const clearExtra = (day: number, conn: Conn = db) => conn.execute("DELETE FROM day_extra WHERE day_ms = $1", [day]);
+export const clearExtra = (day: number, conn: Conn = db) => conn.execute("DELETE FROM day_extra WHERE day_ms >= $1 AND day_ms < $2", dateSpan(day));
 
-/** Each day's extra in [from, to), keyed by its work-day start. */
-export const extrasBetween = async (from: number, to: number) =>
-  new Map((await db.select<{ day_ms: number; extra_ms: number }[]>("SELECT * FROM day_extra WHERE day_ms >= $1 AND day_ms < $2", [from, to])).map((r) => [r.day_ms, r.extra_ms]));
+/** Each day's extra for the work days in [from, to), keyed by the day's date (local midnight). */
+export const extrasBetween = async (from: number, to: number, conn: Pick<Database, "select"> = db) => {
+  const rows = await conn.select<{ day_ms: number; extra_ms: number }[]>("SELECT * FROM day_extra WHERE day_ms >= $1 AND day_ms < $2", [+dateOf(from), +dateOf(to)]);
+  const m = new Map<number, number>();
+  for (const r of rows) m.set(+dateOf(r.day_ms), (m.get(+dateOf(r.day_ms)) ?? 0) + r.extra_ms);
+  return m;
+};
 
 /* ---------- each day's goal ---------- */
 
 /** Remember the goal `day` (its work-day start) is judged against. Today's follows the setting. */
-export const setDayGoal = (day: number, ms: number, conn: Conn = db) =>
-  conn.execute("INSERT INTO day_goal (day_ms, goal_ms) VALUES ($1, $2) ON CONFLICT(day_ms) DO UPDATE SET goal_ms = excluded.goal_ms", [day, ms]);
+export async function setDayGoal(day: number, ms: number, conn: Conn = db) {
+  // One row per date: a row from before "day start" moved is replaced, not left to compete.
+  await conn.execute("DELETE FROM day_goal WHERE day_ms >= $1 AND day_ms < $2 AND day_ms != $3", [...dateSpan(day), day]);
+  await conn.execute("INSERT INTO day_goal (day_ms, goal_ms) VALUES ($1, $2) ON CONFLICT(day_ms) DO UPDATE SET goal_ms = excluded.goal_ms", [day, ms]);
+}
 
-/** Each day's goal in [from, to), keyed by its work-day start. */
-export const goalsBetween = async (from: number, to: number) =>
-  new Map((await db.select<{ day_ms: number; goal_ms: number }[]>("SELECT * FROM day_goal WHERE day_ms >= $1 AND day_ms < $2", [from, to])).map((r) => [r.day_ms, r.goal_ms]));
+/** Each day's goal for the work days in [from, to), keyed by the day's date (local midnight). */
+export const goalsBetween = async (from: number, to: number, conn: Pick<Database, "select"> = db) =>
+  new Map((await conn.select<{ day_ms: number; goal_ms: number }[]>("SELECT * FROM day_goal WHERE day_ms >= $1 AND day_ms < $2 ORDER BY day_ms", [+dateOf(from), +dateOf(to)])).map((r) => [+dateOf(r.day_ms), r.goal_ms]));
 
 /* ---------- editing history (Settings) ---------- */
 

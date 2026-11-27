@@ -15,19 +15,21 @@ export type AwayEffect =
   | { do: "count" }; // the "Paused." bubble becomes "Welcome back": Count it / Start now
 
 /**
- * One look at the PC. `gone`: paused and nobody here (locked, or idle as long as an auto-pause
- * takes; a short idle isn't away, reading while paused is what the nagging is for).
+ * One look at the PC. `gone`: paused and nobody here: locked, or idle as long as an auto-pause
+ * takes or as a long pause, whichever is sooner (a short idle isn't away, reading while paused is
+ * what the nagging is for). The alarm comes after a long pause, so it never finds an idle desk.
  * Running: lock or "Pause after" pauses at the last input; "Check in after" asks; input back
  * before an answer fades the question (the time counts). Paused: back at the PC turns "Paused."
  * into "Welcome back". Unanswered questions go after ANSWER_WAIT_MS.
  */
 export function awayStep(
   p: { running: boolean; bubble: { kind: BubbleKind; shownAt: number } | null; idleMs: number; locked: boolean; now: number },
-  s: { checkInMs: number; pauseAfterMs: number },
+  s: { checkInMs: number; pauseAfterMs: number; longPauseMs: number },
 ): { gone: boolean; fx: AwayEffect[] } {
   const b = p.bubble;
   const fx: AwayEffect[] = [];
-  const gone = !p.running && (p.locked || (s.pauseAfterMs > 0 && p.idleMs >= s.pauseAfterMs));
+  const emptyMs = s.pauseAfterMs > 0 ? Math.min(s.pauseAfterMs, s.longPauseMs) : s.longPauseMs;
+  const gone = !p.running && (p.locked || p.idleMs >= emptyMs);
   if (b?.kind === "stretch" && p.now - b.shownAt > ANSWER_WAIT_MS) fx.push({ do: "hide", how: "quiet" }); // not today
   if (p.running) {
     const action = awayAction({ idleMs: p.idleMs, locked: p.locked }, s);

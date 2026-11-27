@@ -52,7 +52,7 @@ function BreakDemo() {
         )}
         <hr />
         {quiet ? (
-          <button type="button" onClick={() => hush("")}>{quiet === "done" ? "Done for today" : "Snoozed 30 min"}: remind me again</button>
+          <button type="button" onClick={() => hush("")}>{quiet === "done" ? "Actually, I need to work some more" : "Snoozed 30 min: remind me again"}</button>
         ) : (
           <>
             <button type="button" onClick={() => hush("snooze")}>Snooze reminders 30 min</button>

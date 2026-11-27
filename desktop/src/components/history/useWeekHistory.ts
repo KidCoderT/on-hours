@@ -21,8 +21,8 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
   const [sessions, setSessions] = useState<Session[]>(() => (fixture ? fixtureSessions(Date.now()) : []));
   const [awake, setAwake] = useState<Span[]>(() => (fixture ? fixtureAwake(Date.now()) : []));
   const [breaks, setBreaks] = useState<Span[]>(() => (fixture ? fixtureBreaks(Date.now()) : []));
-  const [extras, setExtras] = useState<Map<number, number>>(() => new Map()); // each day's stretch, by its start
-  const [goals, setGoals] = useState<Map<number, number>>(() => new Map()); // the goal each day was judged against
+  const [extras, setExtras] = useState<Map<number, number>>(() => new Map()); // each day's stretch, by its date
+  const [goals, setGoals] = useState<Map<number, number>>(() => new Map()); // the goal each day was judged against, by its date
   const [failed, setFailed] = useState(false); // a load failed: the chart says so, with a retry
   const [loads, setLoads] = useState(0); // bump to load again (a retry, a hand edit)
   const [maxOffset, setMaxOffset] = useState(fixture ? 1 : 0); // can't page back past the first session
@@ -90,8 +90,8 @@ export function useWeekHistory(offset: number, dayStart: string, weekStart: numb
       breaks: slices(breaksLive, from, to),
       onMs: trimmedTotal(awakeLive, from, to),
       breakMs: trimmedTotal(breaksLive, from, to),
-      extraMs: extras.get(from) ?? 0, // a stretch said yes to: the goal plus this, just that day
-      goalMs: goals.get(from) ?? goalMs, // what the day was judged against; before goals were kept, today's
+      extraMs: extras.get(+date) ?? 0, // a stretch said yes to: the goal plus this, just that day
+      goalMs: goals.get(+date) ?? goalMs, // what the day was judged against; before goals were kept, today's
     };
   });
 

@@ -11,6 +11,7 @@ const ITEMS: [string, string][] = [
   ["Week starts on", "The first column of the history chart."],
   ["Long pause after", "How long a pause can run before the pill turns red and starts asking for you."],
   ["Alarm after", "When the pill grows, shakes and flashes in the taskbar: 1.5 long pauses unless you change it."],
+  ["Rest days", "Days with no reminders. Miss your goal on one and it isn't held against the week. None unless you pick some."],
   ["Check in after", "No keyboard or mouse this long while the timer runs: a bubble asks if you're still there. 10 min by default."],
   ["Pause after", "No input this long and the timer pauses at your last input, then asks when you're back. 20 min by default."],
   ["Open at login", "Start On Hours when you sign in to Windows."],
@@ -22,7 +23,7 @@ export function Settings() {
     <section className="section wrap" id="settings">
       <Reveal>
         <p className="eyebrow">Settings</p>
-        <h2 className="section-title">Fourteen switches. That's all of them.</h2>
+        <h2 className="section-title">Fifteen switches. That's all of them.</h2>
         <p className="section-lead">Right-click the pill and choose Settings, or click the tray icon by the clock.</p>
       </Reveal>
       <div className="settings-layout">
@@ -48,4 +49,4 @@ export function Settings() {
 }
 
 // Height of the screenshot at 450 wide; regenerate with `node scripts/shots/site.mjs`.
-const SHOT_HEIGHT = 1112;
+const SHOT_HEIGHT = 1178;

@@ -2,19 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow, Window } from "@tauri-apps/api/window";
 import { ANSWER, COUNT_LABELS, hideBubble, placeBubble, showBubble, stretchLabels, type BubbleAnswer } from "../lib/bubble";
-import { addExtra, clearExtra, endBreak, extraFor, heartbeat, lastBreak, lastClosedSession, lastSessionEnd, pauseSession, recoverOpenSession, reopenSession, sessionsBetween, STALE_MS, startBreak, startSession } from "../lib/db";
+import { awayStep } from "../lib/away";
+import { addExtra, clearExtra, setDayGoal, endBreak, extraFor, heartbeat, lastBreak, lastClosedSession, lastSessionEnd, pauseSession, recoverOpenSession, reopenSession, sessionsBetween, STALE_MS, startBreak, startSession } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import { fmtTime } from "../lib/format";
 import type { Settings } from "../lib/settings";
-import { awayAction, dayRange, holdMs, trimmedTotal, workDayOf } from "../lib/time";
+import { dayRange, holdMs, nagMs, stretchAdd, trimmedTotal, workDayOf } from "../lib/time";
 
 const HEARTBEAT_MS = 30_000;
 /** How often a running timer (or a waiting bubble) checks whether anyone is at the PC (away.rs). */
 const AWAY_POLL_MS = 2_000;
-/** Idle under this after an away-pause: they're back, so ask. */
-const BACK_MS = 3_000;
-/** "Welcome back" and "push some more?" wait this long for an answer, then go: a No. */
-const COUNT_WAIT_MS = 60_000;
 /** Goal met: the confetti plays this long before the bubble asks about a stretch. */
 const STRETCH_ASK_DELAY_MS = 1_200;
 
@@ -46,6 +43,11 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   const [brk, setBrk] = useState<{ start: number; end: number } | null>(null); // the latest break
   const [synced, setSynced] = useState(0); // bump to re-read today's total from the DB
   const [saveFailed, setSaveFailed] = useState(false); // the last session write failed: the pill shows it
+  const [loadFailed, setLoadFailed] = useState(false); // couldn't read the DB: the pill says so, and play retries
+  const [attempt, setAttempt] = useState(0); // bump to load again after a failure
+  const [away, setAway] = useState(false); // paused and nobody at the PC: locked, or idle for "Pause after"
+  const [backAt, setBackAt] = useState<number | null>(null); // the last return to the PC while paused
+  const awayRef = useRef(false);
   const bubbleRef = useRef<Bubble | null>(null);
   const [bubbleKind, setBubbleKind] = useState<Bubble["kind"] | null>(null); // bubbleRef's kind, to drive effects
   const busy = useRef(false); // ignore double-clicks while a DB write is in flight
@@ -54,7 +56,11 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
 
   // Play stays disabled until we know the real goal/day-start and whether a session is open.
   const ready = recovered && settingsLoaded;
-  const today = dayRange(workDayOf(new Date(now), settings.dayStart), settings.dayStart);
+  const workDay = workDayOf(new Date(now), settings.dayStart);
+  const today = dayRange(workDay, settings.dayStart);
+  // No reminders today: a rest day, or snoozed / done for today from the menus.
+  const restDay = settings.restDays.includes(workDay.getDay());
+  const quiet = restDay || now < settings.quietUntil;
   const running = openStart !== null;
   runningRef.current = running;
   // A session that began before today's start only counts from the day boundary.
@@ -68,6 +74,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
   // Today's totals are loaded: a jump in `elapsed` from here on is real time, not the load.
   const known = ready && loadedDay === today.from;
   const pausedMs = running ? 0 : holdMs(now, pausedSince, today.from, launchedAt);
+  const nag = running ? 0 : nagMs(now, pausedMs, backAt, today.from);
   const onBreak = !running && brk !== null && brk.start <= now && now < brk.end;
   // Rounded up to the second, so a 10 min break starts at 0:10:00 and ends at 0:00:01, never 0:00:00.
   const breakLeftMs = onBreak ? Math.ceil((brk.end - now) / 1000) * 1000 : 0;
@@ -85,8 +92,11 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
       const b = await lastBreak(); // a restart mid-break carries on with it
       if (b) setBrk({ start: b.start_ms, end: b.end_ms });
       setRecovered(true);
-    })().catch((e) => console.error("could not load timer", e));
-  }, []);
+    })().catch((e) => {
+      console.error("could not load timer", e);
+      setLoadFailed(true);
+    });
+  }, [attempt]);
 
   // (Re)load today's finished total on launch and whenever the work-day changes.
   useEffect(() => {
@@ -97,8 +107,23 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
         setExtraMs(extra);
         setLoadedDay(today.from);
       })
-      .catch((e) => console.error("could not load today's total", e));
-  }, [ready, today.from, today.to, synced]);
+      .catch((e) => {
+        console.error("could not load today's total", e);
+        setLoadFailed(true);
+      });
+  }, [ready, today.from, today.to, synced, attempt]);
+
+  /** Try loading again after a failure (play does this while the pill shows the error). */
+  const retry = () => {
+    setLoadFailed(false);
+    setAttempt((n) => n + 1);
+  };
+
+  // Remember the goal today is judged against, so changing it later never rejudges this day.
+  useEffect(() => {
+    if (!known) return;
+    setDayGoal(today.from, settings.dailyGoalMs).catch((e) => console.error("could not save today's goal", e));
+  }, [known, today.from, settings.dailyGoalMs]);
 
   /**
    * Keep the running session's end fresh. If the DB finds it stale (the PC slept with the timer
@@ -131,6 +156,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
       const t = Date.now();
       const slept = t - lastTick.current >= STALE_MS;
       lastTick.current = t;
+      if (slept && !runningRef.current) setBackAt(t); // woke from sleep while paused: back at the PC
       if (slept && runningRef.current) void beat();
       else if (!busy.current) setNow(t);
     }, 1000);
@@ -208,12 +234,16 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
       setBrk({ start: t, end: t + ms });
     });
 
-  /** Push today's target by "Stretch by": the bubble's "+30 min", or the right-click menu. Today only. */
+  /**
+   * Push today's target to "Stretch by" past now: the bubble's "+30 min", or the right-click menu.
+   * Already past the target: from now, so "Push 30 more" always means 30 more. Today only.
+   */
   const stretch = () =>
     write(async () => {
       if (bubbleRef.current?.kind === "stretch") say(null);
-      await addExtra(today.from, settings.stretchMs);
-      setExtraMs((x) => x + settings.stretchMs);
+      const add = stretchAdd(elapsed, target, settings.stretchMs);
+      await addExtra(today.from, add);
+      setExtraMs((x) => x + add);
     });
 
   /** Back from a break early without starting work: the nagging picks up at nudge. */
@@ -228,7 +258,7 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
    *   bubble says "Welcome back": Count it reopens the session (the away time was work), Start now
    *   starts a new one (it wasn't). A click elsewhere, typing, or a minute's wait dismisses it: the
    *   timer stays paused and the away time stays out.
-   * Locking pauses at the last input and asks nothing. A sleep is the heartbeat's job, nothing asked.
+   * Locking pauses at the last input the same way, and asks once unlocked. A sleep is the heartbeat's job, nothing asked.
    */
   const closeAt = async (end: number): Promise<AwaySession | null> => {
     if (!(await heartbeat())) {
@@ -266,25 +296,28 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     }
   };
 
-  /** One look at the PC: every 2s while running or while the bubble is up. */
+  /** One look at the PC, every 2s. */
+  // The decisions live in lib/away.ts (awayStep, unit-tested); this carries them out.
   const look = async (c: AwayCheck) => {
     const b = bubbleRef.current;
-    if (b?.kind === "stretch" && Date.now() - b.shownAt > COUNT_WAIT_MS) say(null, "quiet"); // no answer: not today
-    if (runningRef.current) {
-      const action = awayAction({ idleMs: c.idle_ms, locked: c.locked }, settings);
-      const end = Date.now() - c.idle_ms;
-      if (action === "lock" || action === "pause") {
+    const now = Date.now();
+    const running = runningRef.current;
+    const { gone, fx } = awayStep({ running, bubble: b && { kind: b.kind, shownAt: "shownAt" in b ? b.shownAt : 0 }, idleMs: c.idle_ms, locked: c.locked, now }, settings);
+    if (awayRef.current && !gone && !running) setBackAt(now); // back at the PC: the pause stages start over
+    awayRef.current = gone;
+    setAway(gone);
+    for (const e of fx) {
+      if (e.do === "hide") say(null, e.how);
+      if (e.do === "check") say({ kind: "check", from: e.from });
+      if (e.do === "count" && b?.kind === "paused") say({ kind: "count", away: b.away, shownAt: now });
+      if (e.do === "pause") {
         await write(async () => {
           if (!runningRef.current) return;
-          const away = await closeAt(end);
-          say(away && action === "pause" ? { kind: "paused", away } : null);
+          const away = await closeAt(e.at);
+          say(away ? { kind: "paused", away } : null);
         });
-      } else if (action === "check" && !b) say({ kind: "check", from: end });
-      else if (!action && b?.kind === "check") say(null, "quiet"); // back without answering: it counts
-      return;
+      }
     }
-    if (b?.kind === "paused" && !c.locked && c.idle_ms < BACK_MS) say({ kind: "count", away: b.away, shownAt: Date.now() });
-    if (b?.kind === "count" && Date.now() - b.shownAt > COUNT_WAIT_MS) say(null); // no answer: No
   };
 
   const onAnswer = (a: BubbleAnswer) => {
@@ -303,6 +336,9 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
         if (a.yes) {
           // "Count it": the session carries on as if never paused.
           if (!(await reopenSession(b.away.id, b.away.end, t))) return;
+          // It's running again, so it leaves the finished total right away: otherwise it counts twice
+          // until the reload below lands (and could even set off the goal's confetti).
+          setBaseMs((x) => x - trimmedTotal([{ start_ms: b.away.start, end_ms: b.away.end }], today.from, today.to));
           setOpenStart(b.away.start);
           setSynced((n) => n + 1); // the reopened session leaves today's finished total
         } else {
@@ -371,25 +407,23 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     clearExtra(today.from).catch((e) => console.error("could not drop today's stretch", e));
   }, [known, settings.dailyGoalMs]);
 
-  // Look while running, and while a bubble waits for them to come back.
+  // Look all the time: while running for the away bubbles, while paused for whether anyone's here.
   // ponytail: a restart while the bubble is up drops it and paused time stays out; persist it if that bites.
-  const [watching, setWatching] = useState(false);
   useEffect(() => {
-    const on = running || watching;
-    if (!on || !ready || !isTauri()) return;
-    const id = setInterval(() => {
-      void checkAway().then((c) => c && latest.current.look(c));
-      setWatching(bubbleRef.current !== null);
-    }, AWAY_POLL_MS);
+    if (!ready || !isTauri()) return;
+    const id = setInterval(() => void checkAway().then((c) => c && latest.current.look(c)), AWAY_POLL_MS);
     return () => clearInterval(id);
-  }, [running, watching, ready]);
+  }, [ready]);
 
   // The bubble's answers, and keeping it by the pill when the pill moves or grows.
   useEffect(() => {
     if (!isTauri()) return;
     const win = getCurrentWindow();
     const follow = () => bubbleRef.current && void placeBubble().catch(() => { });
-    const offs = [win.listen<BubbleAnswer>(ANSWER, (e) => latest.current.onAnswer(e.payload)), win.onMoved(follow), win.onResized(follow)];
+    const offs = [
+      win.listen<BubbleAnswer>(ANSWER, (e) => latest.current.onAnswer(e.payload)), win.onMoved(follow), win.onResized(follow),
+      win.listen("sessions-changed", () => setSynced((n) => n + 1)), // history edited in Settings: re-read today
+    ];
     return () => offs.forEach((off) => off.then((f) => f()));
   }, []);
 
@@ -398,11 +432,11 @@ export function useTimer(settings: Settings, settingsLoaded: boolean) {
     const left = "breakLeftMs" in fixture ? fixture.breakLeftMs : 0;
     const idle = async () => { };
     return {
-      elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs,
-      target: settings.dailyGoalMs + ("extraMs" in fixture ? fixture.extraMs : 0), known: true,
-      onBreak: left > 0, breakLeftMs: left, sinceBreakMs: null, ready: true, saveFailed: false, toggle: idle, takeBreak: idle, endBreakNow: idle, stretch: idle,
+      bubble: null, elapsed: fixture.elapsedMs, running: fixture.running, done: fixture.elapsedMs >= settings.dailyGoalMs, pausedMs: fixture.pausedMs,
+      target: settings.dailyGoalMs + ("extraMs" in fixture ? fixture.extraMs : 0), known: true, nag: fixture.pausedMs, away: false, quiet: false, restDay: false, dayEnd: 0,
+      onBreak: left > 0, breakLeftMs: left, sinceBreakMs: null, ready: true, saveFailed: false, loadFailed: false, retry: idle, toggle: idle, takeBreak: idle, endBreakNow: idle, stretch: idle,
     };
   }
 
-  return { elapsed, running, done, target, known, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch };
+  return { bubble: bubbleKind, elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd: today.to, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, loadFailed, retry, toggle, takeBreak, endBreakNow, stretch };
 }

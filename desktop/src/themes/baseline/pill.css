@@ -6,6 +6,8 @@
   --highlight: inset 0 1px 0 #ffffffd9;
   --label: #000000d9;      /* primary label */
   --label-2: #00000073;    /* secondary: the settings glyph */
+  --resting: #0000008f;    /* the number while a pause is short: grey, still 4.5:1 on the panel */
+  --grey: #b3b3b3;  --grey-rim: #9a9a9a; /* the light while a pause is short */
   --fill: #0000000f;       /* control fill */
   --fill-hover: #0000001c;
   --fill-pressed: #0000002b;
@@ -38,6 +40,8 @@
     --highlight: inset 0 0 0 1px #ffffff1f;
     --label: #ffffffd9;
     --label-2: #ffffff73;
+    --resting: #ffffff99;
+    --grey: #6e6e73;  --grey-rim: #5a5a5e;
     --fill: #ffffff17;
     --fill-hover: #ffffff26;
     --fill-pressed: #ffffff38;
@@ -46,7 +50,11 @@
   }
 }
 
-/* One light: red paused, yellow working, green goal met, blue on a planned break. The number never dims. */
+/* One light: grey on a short pause, red once it nags (from the nudge on: a cue that needs no motion),
+   yellow working, green goal met, blue on a planned break. A short pause greys the number too:
+   at rest, nothing asked yet. */
+.pill[data-theme="baseline"][data-pause="short"] { --light: var(--grey); --rim: var(--grey-rim); }
+.pill[data-theme="baseline"][data-pause="short"] .time { color: var(--resting); }
 .pill[data-theme="baseline"][data-running="true"] { --light: var(--yellow); --rim: var(--yellow-rim); }
 .pill[data-theme="baseline"][data-done="true"] { --light: var(--green); --rim: var(--green-rim); }
 /* Working on a stretch: kept (green), and still at it (yellow). */

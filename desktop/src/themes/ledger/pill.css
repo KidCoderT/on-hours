@@ -120,8 +120,8 @@
   text-decoration: underline 1px var(--red);
   text-underline-offset: 2px;
 }
-/* Long: the note becomes a red rubber stamp, OVERDUE, that lands once. Alarm: the figure is
-   struck out and the stamp, now what is still owed today, comes down again every few seconds. */
+/* Long: the note becomes a red rubber stamp, OVERDUE, that lands once. Alarm: the stamp, now what
+   is still owed today, comes down again every few seconds. The figure stands: time worked is earned. */
 .pill[data-theme="ledger"]:is([data-pause="long"], [data-pause="alarm"]) .note {
   padding: 2px 2px 1px;
   border: 1.5px solid var(--red);
@@ -132,10 +132,6 @@
   animation: ledger-stamp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1.2) 1 both;
 }
 .pill[data-theme="ledger"][data-pause="alarm"] .note { animation: ledger-restamp 4s cubic-bezier(0.2, 0.8, 0.2, 1.2) infinite both; }
-.pill[data-theme="ledger"][data-pause="alarm"] .figure {
-  text-decoration: line-through 2px var(--red);
-  text-decoration-skip-ink: none;
-}
 @keyframes ledger-stamp {
   from { opacity: 0; transform: rotate(-6deg) scale(1.8); }
 }

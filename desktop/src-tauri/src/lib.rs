@@ -1,5 +1,17 @@
 mod away;
 
+/// Settings' "Export CSV": write `contents` to Downloads as `name` (a bare file name). Returns the path.
+#[tauri::command]
+fn save_download(app: tauri::AppHandle, name: String, contents: String) -> Result<String, String> {
+    use tauri::Manager;
+    if name.is_empty() || name.contains(['/', '\\', ':']) || name.starts_with('.') {
+        return Err("bad file name".into());
+    }
+    let path = app.path().download_dir().map_err(|e| e.to_string())?.join(name);
+    std::fs::write(&path, contents).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 // Settings' Quit button. The tray menu quits directly.
 #[tauri::command]
 fn quit(app: tauri::AppHandle) {
@@ -99,6 +111,9 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
         app,
         &[
             &MenuItem::with_id(app, "toggle", "Start / Pause", true, None::<&str>)?,
+            &MenuItem::with_id(app, "snooze", "Snooze reminders 30 min", true, None::<&str>)?,
+            &MenuItem::with_id(app, "done", "Done for today", true, None::<&str>)?,
+            &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, "pill", "Show pill", true, None::<&str>)?,
             &MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
@@ -115,6 +130,13 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
             // The timer lives in the pill's webview, so ask it to toggle.
             "toggle" => {
                 let _ = app.emit_to("main", "tray-toggle", ());
+            }
+            // Reminders live in the pill too: it saves them and pauses for "Done for today".
+            "snooze" => {
+                let _ = app.emit_to("main", "tray-snooze", ());
+            }
+            "done" => {
+                let _ = app.emit_to("main", "tray-done", ());
             }
             // Show only, never hide: a hidden pill is a forgotten timer.
             "pill" => {
@@ -199,6 +221,12 @@ fn migrations() -> Vec<tauri_plugin_sql::Migration> {
             sql: include_str!("../migrations/0007_stretch.sql"),
             kind: tauri_plugin_sql::MigrationKind::Up,
         },
+        tauri_plugin_sql::Migration {
+            version: 8,
+            description: "goal per day",
+            sql: include_str!("../migrations/0008_day_goal.sql"),
+            kind: tauri_plugin_sql::MigrationKind::Up,
+        },
     ]
 }
 
@@ -245,7 +273,7 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![quit, set_hotkey, set_bounds, away::away, away::input_now])
+        .invoke_handler(tauri::generate_handler![quit, save_download, set_hotkey, set_bounds, away::away, away::input_now])
         .setup(|_app| {
             #[cfg(desktop)]
             {

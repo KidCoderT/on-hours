@@ -237,7 +237,7 @@
 }
 
 /* Reads as the same muted text as the version; on hover the underline fades in. No colour change. */
-.app-version .link {
+.link {
   padding: 0;
   border: 0;
   background: none;
@@ -251,17 +251,17 @@
   transition: text-decoration-color 0.25s ease;
 }
 
-.app-version .link:hover {
+.link:hover {
   text-decoration-color: var(--muted);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-version .link {
+  .link {
     transition: none;
   }
 }
 
-.app-version .link:focus-visible {
+.link:focus-visible {
   outline: 2px solid var(--icon);
   outline-offset: 2px;
   border-radius: 2px;
@@ -437,4 +437,10 @@ html:has(.settings) #root {
 .hotkey-reset:focus-visible {
   outline: 2px solid var(--icon);
   outline-offset: 2px;
+}
+
+.rest-days span {
+  padding: 0;
+  width: 26px;
+  text-align: center;
 }

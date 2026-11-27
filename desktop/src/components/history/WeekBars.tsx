@@ -14,7 +14,7 @@ type Props = { days: Day[]; goalMs: number; active: number; onPick: (i: number) 
  */
 function WeekBars({ days, goalMs, active, onPick }: Props) {
   // Y scale in whole hours, ticks every 2h, always tall enough to show the goal and the PC-on time.
-  const maxH = Math.max(6, Math.ceil(Math.max(goalMs, ...days.map((d) => Math.max(d.ms + d.breakMs, d.onMs, goalMs + d.extraMs))) / HOUR / 2) * 2);
+  const maxH = Math.max(6, Math.ceil(Math.max(goalMs, ...days.map((d) => Math.max(d.ms + d.breakMs, d.onMs, d.goalMs + d.extraMs))) / HOUR / 2) * 2);
   const ticks = Array.from({ length: maxH / 2 + 1 }, (_, i) => i * 2).filter((t) => Math.abs(t * HOUR - goalMs) >= maxH * HOUR * 0.06); // never under the Goal label
   const pct = (ms: number) => `${(ms / (maxH * HOUR)) * 100}%`;
 
@@ -36,18 +36,18 @@ function WeekBars({ days, goalMs, active, onPick }: Props) {
               key={i}
               className="col"
               data-active={i === active}
-              data-met={d.ms >= goalMs}
+              data-met={d.ms >= d.goalMs}
               disabled={d.future}
               onMouseEnter={() => onPick(i)}
               onFocus={() => onPick(i)}
-              aria-label={`${fmtDate(d.date, { weekday: "long", month: "short", day: "numeric" })}: ${fmtHM(d.ms)}, ${d.ms >= goalMs ? "goal met" : "under goal"}${d.onMs ? `, PC on ${fmtHM(d.onMs)}` : ""}${d.breakMs ? `, breaks ${fmtHM(d.breakMs)}` : ""}${d.extraMs ? `, stretched ${fmtHM(d.extraMs)} past the goal` : ""}`}
+              aria-label={`${fmtDate(d.date, { weekday: "long", month: "short", day: "numeric" })}: ${fmtHM(d.ms)}, ${d.ms >= d.goalMs ? "goal met" : "under goal"}${d.onMs ? `, PC on ${fmtHM(d.onMs)}` : ""}${d.breakMs ? `, breaks ${fmtHM(d.breakMs)}` : ""}${d.extraMs ? `, stretched ${fmtHM(d.extraMs)} past the goal` : ""}`}
             >
               {!d.future && (
                 <>
                   <span className="bar-on" style={{ height: pct(d.onMs) }} />
                   <span className="bar" style={{ height: `max(2px, ${pct(d.ms)})` }} />
                   {d.breakMs > 0 && <span className="bar-break" style={{ bottom: `calc(${pct(d.ms)} + 2px)`, height: `max(3px, calc(${pct(d.breakMs)} - 2px))` }} />}
-                  {d.extraMs > 0 && <span className="stretch-mark" data-made={d.ms >= goalMs + d.extraMs} style={{ bottom: pct(goalMs + d.extraMs) }} />}
+                  {d.extraMs > 0 && <span className="stretch-mark" data-made={d.ms >= d.goalMs + d.extraMs} style={{ bottom: pct(d.goalMs + d.extraMs) }} />}
                 </>
               )}
             </button>

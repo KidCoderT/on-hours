@@ -4,7 +4,7 @@ import { HOUR } from "../../lib/time";
 import type { useWeekHistory } from "./useWeekHistory";
 
 type Day = ReturnType<typeof useWeekHistory>["days"][number];
-type Props = { days: Day[]; goalMs: number; active: number; onPick: (i: number) => void };
+type Props = { days: Day[]; active: number; onPick: (i: number) => void };
 
 type Kind = "work" | "break" | "on";
 const TIP: Record<Kind, string> = { work: "", break: "Break ", on: "PC on " };
@@ -13,7 +13,7 @@ const TIP: Record<Kind, string> = { work: "", break: "Break ", on: "PC on " };
  * Calendar-style week: each session drawn at the hours it happened, day totals underneath.
  * Behind the sessions: when the PC was on (a pale band) and planned breaks (hatched).
  */
-function WeekTimeline({ days, goalMs, active, onPick }: Props) {
+function WeekTimeline({ days, active, onPick }: Props) {
   // Vertical range in hours after day start: fit the week's sessions, at least 6h, on even hours.
   const hours = days.flatMap((d) => [...d.spans, ...d.on, ...d.breaks].flatMap((s) => [(s.start - d.from) / HOUR, (s.end - d.from) / HOUR]));
   let lo = hours.length ? Math.floor(Math.min(...hours)) : 8;
@@ -62,7 +62,7 @@ function WeekTimeline({ days, goalMs, active, onPick }: Props) {
               key={i}
               className="col"
               data-active={i === active}
-              data-met={d.ms >= goalMs}
+              data-met={d.ms >= d.goalMs}
               disabled={d.future}
               onMouseEnter={() => onPick(i)}
               onFocus={() => onPick(i)}

@@ -4,13 +4,13 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { Menu } from "@tauri-apps/api/menu";
 import { useSettings } from "../hooks/useSettings";
 import { useWindowPosition } from "../hooks/useWindowPosition";
-import { fmtClock, fmtHM } from "../lib/format";
+import { fmtClock, fmtHM, fmtTime } from "../lib/format";
 import { pauseLevel } from "../lib/time";
 import { quitApp } from "../lib/db";
 import { fixture } from "../lib/fixture";
 import { pillWidth, THEMES, themeById } from "../themes/registry";
 import type { PillModel } from "../themes/types";
-import { useAlarm } from "./useAlarm";
+import { calm, useAlarm } from "./useAlarm";
 import { useAutoUpdate } from "./useAutoUpdate";
 import { useAwakeLog } from "./useAwakeLog";
 import { useCelebrate } from "./useCelebrate";
@@ -27,19 +27,24 @@ async function openSettings() {
 /** The right-click menu's break lengths, in minutes. */
 const BREAKS = [10, 15, 30];
 
+/** "Snooze reminders": how long a paused pill stays quiet. */
+const SNOOZE_MS = 30 * 60_000;
+
 /** How much bigger the alarm makes the pill. */
 const ALARM_ZOOM = 1.5;
 
 /** Shown (ring + tooltip + spoken) after a session write fails, until the next one succeeds. */
 const SAVE_FAILED = "Couldn't save your time. Try again.";
+/** Shown when the timer couldn't read its data: play tries again. */
+const LOAD_FAILED = "Couldn't load your time. Press play to try again.";
 
 /** What a screen reader hears; themes keep their own visuals aria-hidden. */
 function spokenStatus(m: PillModel) {
   const today = `Today ${fmtClock(m.elapsedMs)}.`;
+  if (m.pause === "break") return `${today} On a break, ${fmtHM(m.breakLeftMs)} left.`;
   if (m.done && m.elapsedMs < m.targetMs) return `${today} Daily goal met. ${fmtHM(m.targetMs - m.elapsedMs)} left on today's stretch.`;
   if (m.done) return `${today} Daily goal met.`;
   if (m.running) return `${today} Working, daily goal not met.`;
-  if (m.pause === "break") return `${today} On a break, ${fmtHM(m.breakLeftMs)} left.`;
   return `${today} Paused for ${fmtHM(m.pausedMs)}, daily goal not met.`;
 }
 
@@ -48,16 +53,17 @@ function spokenStatus(m: PillModel) {
  * Right-click anywhere opens a menu (breaks, settings), whatever the theme and whether its button is shown.
  */
 function PillWindow() {
-  const { settings, loaded } = useSettings();
-  const { elapsed, running, done, target, known, pausedMs, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
+  const { settings, loaded, save } = useSettings();
+  const { bubble, elapsed, running, done, target, known, pausedMs, nag, away, quiet, restDay, dayEnd, onBreak, breakLeftMs, sinceBreakMs, ready, saveFailed, loadFailed, retry, toggle, takeBreak, endBreakNow, stretch } = useTimer(settings, loaded);
   const theme = themeById(settings.pillTheme);
   const width = pillWidth(theme, settings.pillSettingsButton);
   // In the app, wait for the saved settings so the pill never flashes the default theme first.
   const settled = loaded || !isTauri();
   useWindowPosition();
   useAwakeLog();
-  // Updates restart the app: wait for a long pause, not a quick break.
-  useAutoUpdate(!running && pausedMs >= settings.longPauseMs);
+  // Updates restart the app: wait for a long pause. Never during a break (they're coming back to it)
+  // or while a bubble waits for an answer (a restart would drop it, and "Count it" with it).
+  useAutoUpdate(!running && !onBreak && !bubble && pausedMs >= settings.longPauseMs);
 
   // Screenshot harness only: tell it the window width and the registered themes, so it can
   // size the viewport and fail when a theme overflows its declared width.
@@ -85,24 +91,33 @@ function PillWindow() {
     done,
     pausedMs,
     breakLeftMs,
-    pause: pauseLevel({ running, done, pausedMs, onBreak, sinceBreakMs }, settings),
-    ready,
+    // Judged by `nag`: the pause, counted from a return to the PC or a quiet start of the day.
+    pause: pauseLevel({ running, done: done || quiet, pausedMs: nag, onBreak, sinceBreakMs, away }, settings),
+    ready: ready || loadFailed, // a failed load leaves play on, to retry
     showSettingsButton: settings.pillSettingsButton,
-    toggle: () => void toggle(),
+    toggle: () => (loadFailed ? retry() : void toggle()),
     openSettings: () => void openSettings().catch((e) => console.error("could not open settings", e)),
   };
 
   // The alarm stage: the pill grows, shakes and flashes its taskbar button. App only: in the
   // screenshot harness the window can't grow, so the pill is drawn at its normal size.
   const alarm = m.pause === "alarm" && isTauri();
-  useFitWindow(width, loaded, alarm ? ALARM_ZOOM : 1);
+  useFitWindow(width, loaded, alarm && !calm() ? ALARM_ZOOM : 1);
   useAlarm(alarm);
   // Goal (or today's stretch) met while working: confetti, a wiggle and a green flash.
   const celebrate = useCelebrate(elapsed, target, running, known);
 
+  // No reminders until `until`: "Snooze" (30 min) or "Done for today" (to the day's end, pausing a running timer).
+  const hush = (until: number) => void save("quiet_until", String(until), { ...settings, quietUntil: until });
+  const snooze = () => hush(Date.now() + SNOOZE_MS);
+  const doneToday = () => {
+    if (running && ready) void toggle();
+    hush(dayEnd);
+  };
+
   // The tray's "Start / Pause". A ref, so the listener always calls the current toggle.
-  const latest = useRef(m);
-  latest.current = m;
+  const latest = useRef({ ...m, snooze, doneToday });
+  latest.current = { ...m, snooze, doneToday };
   useEffect(() => {
     if (!isTauri()) return;
     const win = getCurrentWindow();
@@ -111,9 +126,11 @@ function PillWindow() {
     });
     // The tray's "Quit": close the running session first (lib.rs quits anyway if this hangs).
     const unlistenQuit = win.listen("tray-quit", () => void quitApp());
+    const offs = [win.listen("tray-snooze", () => latest.current.snooze()), win.listen("tray-done", () => latest.current.doneToday())];
     return () => {
       unlisten.then((off) => off());
       unlistenQuit.then((off) => off());
+      offs.forEach((o) => o.then((off) => off()));
     };
   }, []);
 
@@ -132,7 +149,13 @@ function PillWindow() {
       : BREAKS.map((min) => ({ text: `Take a ${min} min break`, enabled: ready, action: () => void takeBreak(min * 60_000) }));
     // Goal met: push some more today, whenever (the bubble only asks the moment it's met).
     const more = done && settings.stretchMs ? [{ text: `Push ${Math.round(settings.stretchMs / 60_000)} more min today`, enabled: ready, action: () => void stretch() }] : [];
-    Menu.new({ items: [...more, ...breaks, { item: "Separator" as const }, { text: "Settings", action: m.openSettings }] })
+    // Reminders: nothing to quiet once the goal is met. Quieted by hand: say until when, and undo.
+    const snoozed = Date.now() < settings.quietUntil;
+    const reminders = done ? [] : restDay ? [{ text: "Rest day: no reminders", enabled: false }]
+      : snoozed ? [{ text: `${settings.quietUntil >= dayEnd ? "Done for today" : `Snoozed till ${fmtTime(settings.quietUntil)}`}: remind me again`, action: () => hush(0) }]
+      : [{ text: "Snooze reminders 30 min", action: snooze }, { text: "Done for today", action: doneToday }];
+    const sep = { item: "Separator" as const };
+    Menu.new({ items: [...more, ...breaks, ...(reminders.length ? [sep, ...reminders] : []), sep, { text: "Settings", action: m.openSettings }] })
       .then((menu) => menu.popup())
       .catch((err) => console.error("could not open the pill menu", err));
   };
@@ -141,10 +164,12 @@ function PillWindow() {
   return (
     <div
       className="pill-shell" data-tauri-drag-region="deep" onContextMenu={onContextMenu}
-      data-error={saveFailed || undefined} data-celebrate={celebrate || undefined} title={saveFailed ? SAVE_FAILED : undefined}
+      data-error={saveFailed || loadFailed || undefined} data-celebrate={celebrate || undefined} title={loadFailed ? LOAD_FAILED : saveFailed ? SAVE_FAILED : undefined}
     >
       {/* Not a live region: it changes every second and would read the clock aloud nonstop. */}
-      <span className="sr-only">{saveFailed && `${SAVE_FAILED} `}{spokenStatus(m)}</span>
+      <span className="sr-only">{loadFailed && `${LOAD_FAILED} `}{saveFailed && `${SAVE_FAILED} `}{spokenStatus(m)}</span>
+      {/* The moments, read once as they happen: the text appears, then goes. */}
+      <span className="sr-only" aria-live="polite">{celebrate ? "Daily goal met." : m.pause === "alarm" ? "Paused too long. Time to get back to work." : ""}</span>
       <theme.Pill m={m} />
     </div>
   );

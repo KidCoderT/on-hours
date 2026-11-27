@@ -169,6 +169,35 @@ export const clearExtra = (day: number, conn: Conn = db) => conn.execute("DELETE
 export const extrasBetween = async (from: number, to: number) =>
   new Map((await db.select<{ day_ms: number; extra_ms: number }[]>("SELECT * FROM day_extra WHERE day_ms >= $1 AND day_ms < $2", [from, to])).map((r) => [r.day_ms, r.extra_ms]));
 
+/* ---------- each day's goal ---------- */
+
+/** Remember the goal `day` (its work-day start) is judged against. Today's follows the setting. */
+export const setDayGoal = (day: number, ms: number, conn: Conn = db) =>
+  conn.execute("INSERT INTO day_goal (day_ms, goal_ms) VALUES ($1, $2) ON CONFLICT(day_ms) DO UPDATE SET goal_ms = excluded.goal_ms", [day, ms]);
+
+/** Each day's goal in [from, to), keyed by its work-day start. */
+export const goalsBetween = async (from: number, to: number) =>
+  new Map((await db.select<{ day_ms: number; goal_ms: number }[]>("SELECT * FROM day_goal WHERE day_ms >= $1 AND day_ms < $2", [from, to])).map((r) => [r.day_ms, r.goal_ms]));
+
+/* ---------- editing history (Settings) ---------- */
+
+/** Add a finished session by hand. */
+export const addSession = (start: number, end: number, conn: Conn = db) =>
+  conn.execute("INSERT INTO sessions (start_ms, end_ms, open) VALUES ($1, $2, 0)", [start, end]);
+
+/** Change a finished session's times. The running one is the timer's: never touched here. */
+export const editSession = (id: number, start: number, end: number, conn: Conn = db) =>
+  conn.execute("UPDATE sessions SET start_ms = $1, end_ms = $2 WHERE id = $3 AND open = 0", [start, end, id]);
+
+/** Delete a finished session. */
+export const deleteSession = (id: number, conn: Conn = db) => conn.execute("DELETE FROM sessions WHERE id = $1 AND open = 0", [id]);
+
+/** Every finished session, oldest first: the CSV export. */
+export const allSessions = () => db.select<Session[]>("SELECT * FROM sessions WHERE open = 0 ORDER BY start_ms");
+
+/** A full copy of the database at `path` (SQLite's own consistent snapshot, safe while running). */
+export const backupTo = (path: string) => db.execute(`VACUUM INTO '${path.replace(/'/g, "''")}'`);
+
 /* ---------- settings ---------- */
 
 export async function getSettings(): Promise<Settings> {

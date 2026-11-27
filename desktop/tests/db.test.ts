@@ -2,9 +2,11 @@
 import { Database } from "bun:sqlite";
 import { readdirSync } from "node:fs";
 import { expect, test } from "bun:test";
-import { addExtra, clearExtra, endBreak, extraFor, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
+import { addSession, deleteSession, editSession, setDayGoal, addExtra, clearExtra, endBreak, extraFor, markAwake, MIN_SESSION_MS, pauseSession, recoverOpenSession, reopenSession, STALE_MS, startBreak, touchOpen, type Session } from "../src/lib/db";
 import { DEFAULT_SETTINGS, parseSettings } from "../src/lib/settings";
-import { awayAction, dayRange, holdMs, pauseLevel, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
+import { awayStep } from "../src/lib/away";
+import { sessionsCsv } from "../src/lib/format";
+import { atWorkDay, overlapsAny, awayAction, dayRange, holdMs, nagMs, pauseLevel, stretchAdd, ROLLOVER_QUIET_MS, trimmedTotal, weekStartOf, workDayOf } from "../src/lib/time";
 
 const H = 3_600_000;
 const s = (start: number, end: number): Session => ({ id: 0, start_ms: start, end_ms: end, open: 0 });
@@ -291,4 +293,109 @@ test("\"Stretch by\": 30 min by default, 0 turns the question off, out of range 
   expect(parseSettings({ stretch_min: "0" }).stretchMs).toBe(0);
   expect(parseSettings({ stretch_min: "45" }).stretchMs).toBe(45 * M);
   expect(["4", "121", "2.5", "x"].map((v) => parseSettings({ stretch_min: v }).stretchMs)).toEqual([30 * M, 30 * M, 30 * M, 30 * M]);
+});
+
+test("nag clock: a return to the PC or a new day starts the stages over; the pause itself is untouched", () => {
+  const day = new Date(2026, 10, 4).getTime();
+  const now = day + 9 * H;
+  expect(nagMs(now, H, null, day)).toBe(H); // a plain pause
+  expect(nagMs(now, H, now - 60_000, day)).toBe(60_000); // back a minute ago: judged from the return
+  expect(nagMs(now, H, now - 2 * H, day)).toBe(H); // a return before the pause changes nothing
+  // App open across the day start, no pause yet today: quiet for the first half hour.
+  expect(nagMs(day + 20 * 60_000, 20 * 60_000, null, day)).toBe(0);
+  expect(nagMs(day + 9 * H, 9 * H, null, day)).toBe(9 * H - ROLLOVER_QUIET_MS);
+  expect(nagMs(day + 9 * H, 9 * H, day + 8.9 * H, day)).toBeCloseTo(0.1 * H); // back this morning: from then
+});
+
+test("pause stages: quiet days never nag, and nobody at the PC holds the alarm at long", () => {
+  const M = 60_000;
+  const s = { nudgeMs: 5 * M, longPauseMs: 20 * M, alarmFactor: 1.5 };
+  const p = { running: false, done: false, pausedMs: 90 * M, onBreak: false, sinceBreakMs: null };
+  expect(pauseLevel(p, s)).toBe("alarm");
+  expect(pauseLevel({ ...p, away: true }, s)).toBe("long");
+  expect(pauseLevel({ ...p, away: true, pausedMs: 21 * M }, s)).toBe("long");
+  expect(pauseLevel({ ...p, away: true, pausedMs: 6 * M }, s)).toBe("nudge");
+});
+
+test("rest days and quiet-until parse; junk is dropped", () => {
+  expect(parseSettings({}).restDays).toEqual([]);
+  expect(parseSettings({ rest_days: "6,0,6, 3,x,9," }).restDays).toEqual([0, 3, 6]);
+  expect(parseSettings({ quiet_until: "1764000000000" }).quietUntil).toBe(1764000000000);
+  expect(parseSettings({ quiet_until: "-5" }).quietUntil).toBe(0);
+  expect(parseSettings({ quiet_until: "soon" }).quietUntil).toBe(0);
+});
+
+test("push more: 30 past the target, or 30 past now once beyond it", () => {
+  const M = 60_000;
+  expect(stretchAdd(240 * M, 240 * M, 30 * M)).toBe(30 * M); // the moment the goal is met
+  expect(stretchAdd(250 * M, 240 * M, 30 * M)).toBe(40 * M); // 10 min past: target ends 30 min from now
+  expect(stretchAdd(200 * M, 270 * M, 30 * M)).toBe(30 * M); // mid-stretch: 30 more on top
+});
+
+/* ---------- phase 2 ---------- */
+
+test("away bubbles: the state machine the timer runs every 2s", () => {
+  const M = 60_000;
+  const set = { checkInMs: 10 * M, pauseAfterMs: 20 * M };
+  const now = 100 * M;
+  const step = (p: Partial<Parameters<typeof awayStep>[0]>) => awayStep({ running: true, bubble: null, idleMs: 0, locked: false, now, ...p }, set);
+  expect(step({}).fx).toEqual([]); // working, at the PC
+  expect(step({ idleMs: 11 * M }).fx).toEqual([{ do: "check", from: now - 11 * M }]); // still there?
+  expect(step({ idleMs: 11 * M, bubble: { kind: "check", shownAt: 0 } }).fx).toEqual([]); // asked once
+  expect(step({ idleMs: 1000, bubble: { kind: "check", shownAt: 0 } }).fx).toEqual([{ do: "hide", how: "quiet" }]); // back: it counts
+  expect(step({ idleMs: 21 * M }).fx).toEqual([{ do: "pause", at: now - 21 * M }]); // auto-pause at the last input
+  expect(step({ locked: true, idleMs: 30_000 }).fx).toEqual([{ do: "pause", at: now - 30_000 }]); // locked: same
+  // Paused with "Paused." up: back at the PC turns it into "Welcome back"; locked, it waits.
+  const paused = { running: false, bubble: { kind: "paused" as const, shownAt: 0 } };
+  expect(step({ ...paused, idleMs: 1000 }).fx).toEqual([{ do: "count" }]);
+  expect(step({ ...paused, idleMs: 1000, locked: true }).fx).toEqual([]);
+  expect(step({ ...paused, idleMs: 21 * M }).gone).toBe(true);
+  // Unanswered: "Welcome back" is a No after a minute, the stretch offer fades.
+  expect(step({ running: false, bubble: { kind: "count", shownAt: now - 61_000 } }).fx).toEqual([{ do: "hide", how: "drop" }]);
+  expect(step({ bubble: { kind: "stretch", shownAt: now - 61_000 } }).fx).toEqual([{ do: "hide", how: "quiet" }]);
+  // Paused and idle a while but under "Pause after": not away, the nagging is for exactly this.
+  expect(step({ running: false, idleMs: 5 * M }).gone).toBe(false);
+});
+
+test("hand edits: add, change and delete finished sessions; the running one is never touched", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db) as never;
+  db.run("INSERT INTO sessions (start_ms, end_ms, open) VALUES (10, 20, 1)");
+  await addSession(100, 200, c);
+  const id = (db.query("SELECT id FROM sessions WHERE open = 0").get() as { id: number }).id;
+  await editSession(id, 120, 220, c);
+  expect(db.query("SELECT start_ms, end_ms FROM sessions WHERE id = ?").get(id)).toEqual({ start_ms: 120, end_ms: 220 });
+  const open = (db.query("SELECT id FROM sessions WHERE open = 1").get() as { id: number }).id;
+  await editSession(open, 0, 5, c);
+  await deleteSession(open, c);
+  expect(only(db)).toEqual({ start_ms: 10, end_ms: 20, open: 1 }); // first row: the running one, as it was
+  await deleteSession(id, c);
+  expect(db.query("SELECT COUNT(*) AS n FROM sessions").get()).toEqual({ n: 1 });
+});
+
+test("each day keeps the goal it was judged against", async () => {
+  const db = new Database(":memory:");
+  await migrate(db, migrationFiles());
+  const c = conn(db) as never;
+  await setDayGoal(1000, 240 * 60_000, c);
+  await setDayGoal(2000, 240 * 60_000, c);
+  await setDayGoal(2000, 180 * 60_000, c); // the goal changed that day: that day follows
+  expect(db.query("SELECT day_ms, goal_ms FROM day_goal ORDER BY day_ms").all()).toEqual([{ day_ms: 1000, goal_ms: 240 * 60_000 }, { day_ms: 2000, goal_ms: 180 * 60_000 }]);
+});
+
+test("hand-edited times land on the work-day; overlaps are caught", () => {
+  const mon = new Date(2026, 10, 2);
+  expect(atWorkDay(mon, "09:30", "00:00")).toBe(new Date(2026, 10, 2, 9, 30).getTime());
+  expect(atWorkDay(mon, "02:30", "04:00")).toBe(new Date(2026, 10, 3, 2, 30).getTime()); // the night after
+  expect(atWorkDay(mon, "04:00", "04:00")).toBe(new Date(2026, 10, 2, 4, 0).getTime());
+  const spans = [{ id: 1, start_ms: 100, end_ms: 200 }];
+  expect(overlapsAny(spans, 150, 250)).toBe(true);
+  expect(overlapsAny(spans, 200, 300)).toBe(false); // touching is fine
+  expect(overlapsAny(spans, 150, 250, 1)).toBe(false); // editing itself
+});
+
+test("CSV export: one row per session, local times, minutes", () => {
+  const a = new Date(2026, 10, 2, 9, 5).getTime();
+  expect(sessionsCsv([{ start_ms: a, end_ms: a + 90 * 60_000 }])).toBe("start,end,minutes\r\n2026-11-02 09:05,2026-11-02 10:35,90\r\n");
 });

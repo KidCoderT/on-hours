@@ -5,7 +5,7 @@ import type { PillModel } from "../types";
 import "./pill.css";
 
 /**
- * A Mac panel. The status light is a window traffic light: red paused, yellow working,
+ * A Mac panel. The status light is a window traffic light: grey (number too) on a short pause, red once the pause nags, yellow working,
  * green goal met, blue on a planned break (the number counts the break down). Working on a stretch
  * past the goal, the light is half green, half yellow: kept, and pushing on. Paused, the red
  * light bounces more and more often

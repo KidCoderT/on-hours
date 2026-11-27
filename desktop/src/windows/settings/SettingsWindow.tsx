@@ -6,7 +6,10 @@ import { check, type Update } from "@tauri-apps/plugin-updater";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import "./settings.css"; // before the chart's CSS, matching the original cascade order
 import { useSettings } from "../../hooks/useSettings";
-import { quitApp } from "../../lib/db";
+import { allSessions, backupTo, quitApp } from "../../lib/db";
+import { sessionsCsv } from "../../lib/format";
+import { downloadDir, join } from "@tauri-apps/api/path";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { comboFromPress, showCombo } from "../../lib/hotkey";
 import { ALARM_FACTOR, CHECK_IN_MIN, DEFAULT_SETTINGS, LONG_PAUSE_MIN, PAUSE_AFTER_MIN, STRETCH_MIN } from "../../lib/settings";
 import { applyTheme, getTheme } from "../../lib/theme";
@@ -19,11 +22,39 @@ const WEEKDAYS = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 7 + i).to
 
 type SettingsApi = ReturnType<typeof useSettings>;
 
+const WEEKDAYS_NARROW = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 7 + i).toLocaleDateString(undefined, { weekday: "narrow" }));
+
+/** Rest days: no reminders, and a missed one isn't held against the week. Off by default. */
+function RestDaysRow({ settings, save }: SettingsApi) {
+  const order = Array.from({ length: 7 }, (_, i) => (settings.weekStart + i) % 7);
+  const flip = (d: number, on: boolean) => {
+    const next = on ? [...settings.restDays, d].sort() : settings.restDays.filter((x) => x !== d);
+    save("rest_days", next.join(","), { ...settings, restDays: next });
+  };
+  return (
+    <div className="row">
+      <span className="row-copy">
+        <span id="rest-label">Rest days</span>
+        <small>{settings.restDays.length ? "No reminders, and not held against the week." : "None: every day nags until the goal."}</small>
+      </span>
+      <div className="segmented rest-days" role="group" aria-labelledby="rest-label">
+        {order.map((d) => (
+          <label key={d} title={WEEKDAYS[d]}>
+            <input type="checkbox" className="sr-only" aria-label={WEEKDAYS[d]} checked={settings.restDays.includes(d)} onChange={(e) => flip(d, e.target.checked)} />
+            <span>{WEEKDAYS_NARROW[d]}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * A number field that may be mid-edit ("" or "1.") without saving. Shows the saved value once
- * settings load; saves only values `parse` accepts.
+ * settings load; saves only values `parse` accepts. `lazy`: save on Enter or leaving the field
+ * (`commit`), not each keystroke, and only a changed value; an unaccepted one goes back to the saved.
  */
-function useNumberField(saved: number, loaded: boolean, parse: (text: string) => number | null, save: (n: number) => void) {
+function useNumberField(saved: number, loaded: boolean, parse: (text: string) => number | null, save: (n: number) => void, lazy = false) {
   const [text, setText] = useState(String(saved));
   useEffect(() => {
     if (loaded) setText(String(saved));
@@ -31,9 +62,14 @@ function useNumberField(saved: number, loaded: boolean, parse: (text: string) =>
   const onChange = (next: string) => {
     setText(next);
     const n = parse(next);
-    if (n !== null) save(n);
+    if (n !== null && !lazy) save(n);
   };
-  return [text, onChange] as const;
+  const commit = () => {
+    const n = parse(text);
+    if (n === null) setText(String(saved));
+    else if (n !== saved) save(n);
+  };
+  return [text, onChange, commit] as const;
 }
 
 function PillPrefs({ settings, save }: SettingsApi) {
@@ -141,7 +177,8 @@ function StretchRow({ settings, loaded, save }: SettingsApi) {
 
 function DailyRhythm(api: SettingsApi) {
   const { settings, loaded, save } = api;
-  const [goalText, onGoal] = useNumberField(
+  // Lazy: a new goal drops today's stretch, so typing "4" on the way to "4.5" mustn't.
+  const [goalText, onGoal, commitGoal] = useNumberField(
     settings.dailyGoalMs / 3_600_000,
     loaded,
     // At least 1 minute once rounded, like parseSettings: a 0-minute goal would reload as the default.
@@ -150,6 +187,7 @@ function DailyRhythm(api: SettingsApi) {
       const min = Math.round(h * 60);
       save("daily_goal_min", String(min), { ...settings, dailyGoalMs: min * 60_000 });
     },
+    true,
   );
   const [pauseText, onPause] = useNumberField(
     settings.longPauseMs / 60_000,
@@ -175,7 +213,9 @@ function DailyRhythm(api: SettingsApi) {
       <label className="row">
         <span className="row-copy"><span>Daily goal</span><small>Your minimum focused time.</small></span>
         <span className="field">
-          <input aria-label="Daily goal in hours" type="number" min={0.5} max={24} step={0.5} value={goalText} onChange={(e) => onGoal(e.target.value)} />
+          <input aria-label="Daily goal in hours" type="number" min={0.5} max={24} step={0.5} value={goalText} onChange={(e) => onGoal(e.target.value)}
+            onBlur={commitGoal} onKeyDown={(e) => e.key === "Enter" && commitGoal()}
+          />
           <span aria-hidden="true">h</span>
         </span>
       </label>
@@ -213,6 +253,7 @@ function DailyRhythm(api: SettingsApi) {
           <span aria-hidden="true">×</span>
         </span>
       </label>
+      <RestDaysRow {...api} />
       <IdleRows {...api} />
     </section>
   );
@@ -293,6 +334,48 @@ function HotkeyRow({ settings, loaded, save }: SettingsApi) {
   );
 }
 
+/**
+ * Your data, out: every session as a CSV, or a full copy of the database. Both land in Downloads,
+ * named by date, and the file is shown in Explorer.
+ */
+function DataRow() {
+  const [note, setNote] = useState("");
+  const today = new Date().toLocaleDateString("sv"); // 2026-11-27
+  const done = (path: string) => {
+    setNote(`Saved to ${path}`);
+    revealItemInDir(path).catch(() => { });
+  };
+  const fail = (what: string) => (e: unknown) => {
+    console.error(what, e);
+    setNote(`Couldn't ${what}. Try again.`);
+  };
+  const exportCsv = () =>
+    allSessions()
+      .then((s) => invoke<string>("save_download", { name: `on-hours-sessions-${today}.csv`, contents: sessionsCsv(s) }))
+      .then(done, fail("export your sessions"));
+  const backup = async () => {
+    try {
+      const path = await join(await downloadDir(), `on-hours-backup-${today}-${Date.now() % 100000}.db`);
+      await backupTo(path);
+      done(path);
+    } catch (e) {
+      fail("back up the database")(e);
+    }
+  };
+  return (
+    <div className="row">
+      <span className="row-copy">
+        <span>Your data</span>
+        <small role="status">{note || "Sessions as a spreadsheet, or a full backup. Saved to Downloads."}</small>
+      </span>
+      <span className="hotkey-controls">
+        <button type="button" className="hotkey-reset" disabled={!isTauri()} onClick={() => void exportCsv()}>Export CSV</button>
+        <button type="button" className="hotkey-reset" disabled={!isTauri()} onClick={() => void backup()}>Back up</button>
+      </span>
+    </div>
+  );
+}
+
 function System(api: SettingsApi) {
   // Windows owns this setting (Settings → Apps → Startup), so we read it from there
   // instead of the DB: whatever Windows says is what the switch shows.
@@ -331,6 +414,7 @@ function System(api: SettingsApi) {
         />
       </label>
       <HotkeyRow {...api} />
+      <DataRow />
     </section>
   );
 }
@@ -412,7 +496,7 @@ function SettingsWindow() {
         <h1>On Hours</h1>
       </header>
 
-      <HistoryChart goalMs={settings.dailyGoalMs} dayStart={settings.dayStart} weekStart={settings.weekStart} />
+      <HistoryChart goalMs={settings.dailyGoalMs} dayStart={settings.dayStart} weekStart={settings.weekStart} restDays={settings.restDays} />
 
       <h2 className="back-matter">Preferences</h2>
       <PillPrefs {...settingsApi} />

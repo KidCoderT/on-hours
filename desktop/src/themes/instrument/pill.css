@@ -84,7 +84,10 @@
 /* Idle and alarm: the colons blink at 1 Hz. The first frame is lit, so stills always show the colon. */
 .pill[data-theme="instrument"]:is([data-mode="idle"], [data-mode="alm"]) .colon { animation: instrument-blink 1s steps(1, end) infinite; }
 @keyframes instrument-blink { 50% { opacity: 0; } }
-/* Nudge: HOLD blinks like a clock nobody has set. */
+/* HOLD reads in the muted ink (the dim segment colour is too faint for small text). From the nudge
+   on it turns amber, a cue that needs no motion, and blinks like a clock nobody has set. */
+.pill[data-theme="instrument"][data-mode="hold"] .annunciator .word { color: var(--muted); }
+.pill[data-theme="instrument"][data-mode="hold"][data-pause="nudge"] .annunciator .word { color: var(--amber); }
 .pill[data-theme="instrument"][data-pause="nudge"] .annunciator .word { animation: instrument-blink 1s steps(1, end) infinite; }
 /* Alarm: the glass flashes red like an alarm clock and one lit segment races along the gauge. */
 .pill[data-theme="instrument"][data-mode="alm"] { animation: instrument-flash 1s steps(1, end) infinite; }

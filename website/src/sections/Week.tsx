@@ -85,7 +85,7 @@ export function Week() {
               <Segmented name="week-view" label="Chart view" value={view} options={[{ id: "totals", label: "Totals" }, { id: "timeline", label: "Timeline" }]} onPick={setView} />
             </div>
             <div className="chart" data-view={view} onMouseLeave={() => setPicked(null)}>
-              {view === "timeline" ? <WeekTimeline days={days} goalMs={GOAL} active={active} onPick={setPicked} /> : <WeekBars days={days} goalMs={GOAL} active={active} onPick={setPicked} />}
+              {view === "timeline" ? <WeekTimeline days={days} active={active} onPick={setPicked} /> : <WeekBars days={days} goalMs={GOAL} active={active} onPick={setPicked} />}
             </div>
             <div className="day-detail" aria-live="polite">
               <span className="day">
